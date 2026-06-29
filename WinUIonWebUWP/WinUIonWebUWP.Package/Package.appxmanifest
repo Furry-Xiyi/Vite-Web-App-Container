@@ -1,0 +1,95 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:uap6="http://schemas.microsoft.com/appx/manifest/uap/windows10/6"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:iot="http://schemas.microsoft.com/appx/manifest/iot/windows10"
+  IgnorableNamespaces="uap uap5 mp uap6 uap3 iot">
+
+  <Identity
+    Name="28AE62C8.FurryXiyi.WinUIonWebUWP"
+    Publisher="CN=69199A48-A765-47C7-BD15-A581600DBBC9"
+    Version="4.0.1.0" />
+
+  <mp:PhoneIdentity PhoneProductId="09ddef43-c36d-4a4a-aa39-e9baee53689d" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+
+  <Properties>
+    <DisplayName>ms-resource:AppDisplayName</DisplayName>
+    <PublisherDisplayName>惜忆想睡觉</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.0.0" MaxVersionTested="10.0.0.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="x-generate"/>
+  </Resources>
+
+  <Applications>
+    <Application Id="App"
+      Executable="$targetnametoken$.exe"
+      EntryPoint="WinUIonWebUWP.App">
+      <uap:VisualElements
+        DisplayName="ms-resource:AppDisplayName"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png"
+        Description="UWP WinUI2.8.7模板"
+        BackgroundColor="transparent">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square71x71Logo="Assets\SmallTile.png" Square310x310Logo="Assets\LargeTile.png"/>
+		<uap:SplashScreen Image="Assets\SplashScreen.png" uap5:Optional="true"/>
+	  </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+
+  
+
+  <Capability Name="internetClient"/>
+
+  
+
+  <Capability Name="privateNetworkClientServer"/>
+
+  
+
+  <uap6:Capability Name="graphicsCapture"/>
+
+  
+
+  <uap:Capability Name="picturesLibrary"/>
+
+  
+
+  <uap:Capability Name="videosLibrary"/>
+
+  
+
+  <uap:Capability Name="musicLibrary"/>
+
+  
+
+  <uap3:Capability Name="backgroundMediaPlayback"/>
+
+  
+
+  <iot:Capability Name="systemManagement"/>
+
+  
+
+  <DeviceCapability Name="webcam"/>
+
+  
+
+  <DeviceCapability Name="microphone"/>
+
+  
+
+  <DeviceCapability Name="location"/></Capabilities>
+</Package>
