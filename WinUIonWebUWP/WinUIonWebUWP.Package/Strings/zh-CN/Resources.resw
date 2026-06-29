@@ -1,0 +1,309 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <!-- 
+    Microsoft ResX Schema 
+    
+    Version 2.0
+    
+    The primary goals of this format is to allow a simple XML format 
+    that is mostly human readable. The generation and parsing of the 
+    various data types are done through the TypeConverter classes 
+    associated with the data types.
+    
+    Example:
+    
+    ... ado.net/XML headers & schema ...
+    <resheader name="resmimetype">text/microsoft-resx</resheader>
+    <resheader name="version">2.0</resheader>
+    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
+    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
+    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
+    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
+    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
+        <value>[base64 mime encoded serialized .NET Framework object]</value>
+    </data>
+    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
+        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
+        <comment>This is a comment</comment>
+    </data>
+                
+    There are any number of "resheader" rows that contain simple 
+    name/value pairs.
+    
+    Each data row contains a name, and value. The row also contains a 
+    type or mimetype. Type corresponds to a .NET class that support 
+    text/value conversion through the TypeConverter architecture. 
+    Classes that don't support this are serialized and stored with the 
+    mimetype set.
+    
+    The mimetype is used for serialized objects, and tells the 
+    ResXResourceReader how to depersist the object. This is currently not 
+    extensible. For a given mimetype the value must be set accordingly:
+    
+    Note - application/x-microsoft.net.object.binary.base64 is the format 
+    that the ResXResourceWriter will generate, however the reader can 
+    read any of the formats listed below.
+    
+    mimetype: application/x-microsoft.net.object.binary.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Binary.BinaryFormatter
+            : and then encoded with base64 encoding.
+    
+    mimetype: application/x-microsoft.net.object.soap.base64
+    value   : The object must be serialized with 
+            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
+            : and then encoded with base64 encoding.
+
+    mimetype: application/x-microsoft.net.object.bytearray.base64
+    value   : The object must be serialized into a byte array 
+            : using a System.ComponentModel.TypeConverter
+            : and then encoded with base64 encoding.
+    -->
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="AppDisplayName" xml:space="preserve">
+    <value>Vite/Web 应用容器</value>
+  </data>
+  <data name="HomeItem.Content" xml:space="preserve">
+    <value>主页</value>
+  </data>
+  <data name="HomePageWelcomeText.Text" xml:space="preserve">
+    <value>欢迎来到主页，这是一个 UWP 模板应用</value>
+  </data>
+  <data name="AppearanceGroup.Text" xml:space="preserve">
+    <value>外观</value>
+  </data>
+  <data name="ThemeTitle.Text" xml:space="preserve">
+    <value>应用主题</value>
+  </data>
+  <data name="ThemeSubtitle.Text" xml:space="preserve">
+    <value>选择要显示的应用主题</value>
+  </data>
+  <data name="ThemeSystem.Content" xml:space="preserve">
+    <value>跟随系统</value>
+  </data>
+  <data name="ThemeLight.Content" xml:space="preserve">
+    <value>浅色</value>
+  </data>
+  <data name="ThemeDark.Content" xml:space="preserve">
+    <value>深色</value>
+  </data>
+  <data name="MaterialTitle.Text" xml:space="preserve">
+    <value>背景材质</value>
+  </data>
+  <data name="MaterialSubtitle.Text" xml:space="preserve">
+    <value>选择要显示的应用材质</value>
+  </data>
+  <data name="PanePositionLeft.Content" xml:space="preserve">
+    <value>左侧</value>
+  </data>
+  <data name="PanePositionTop.Content" xml:space="preserve">
+    <value>顶部</value>
+  </data>
+  <data name="SoundGroup.Text" xml:space="preserve">
+    <value>声音</value>
+  </data>
+  <data name="SoundToggle.Header" xml:space="preserve">
+    <value>启用控件声音</value>
+  </data>
+  <data name="AboutGroup.Text" xml:space="preserve">
+    <value>关于</value>
+  </data>
+  <data name="QQGroup.Text" xml:space="preserve">
+    <value>QQ 群</value>
+  </data>
+  <data name="DiscordGroup.Text" xml:space="preserve">
+    <value>Discord 频道</value>
+  </data>
+  <data name="Feedback.Text" xml:space="preserve">
+    <value>发送反馈</value>
+  </data>
+  <data name="ExternalOpenDialog.Title" xml:space="preserve">
+    <value>此应用尝试打开外部应用</value>
+  </data>
+  <data name="ExternalOpenDialog.PrimaryButtonText" xml:space="preserve">
+    <value>是</value>
+  </data>
+  <data name="ExternalOpenDialog.SecondaryButtonText" xml:space="preserve">
+    <value>否</value>
+  </data>
+  <data name="DialogMessage.Text" xml:space="preserve">
+    <value>是否允许？</value>
+  </data>
+  <data name="HomePageJoinButton.Content" xml:space="preserve">
+    <value>查看Github仓库</value>
+  </data>
+  <data name="Settings_SoundCard.Description" xml:space="preserve">
+    <value>控制应用中的交互提示音</value>
+  </data>
+  <data name="Settings_NavCard.Description" xml:space="preserve">
+    <value>选择要显示的导航栏位置</value>
+  </data>
+  <data name="Settings_SoundCard.Header" xml:space="preserve">
+    <value>控件声音</value>
+  </data>
+  <data name="Settings_NavCard.Header" xml:space="preserve">
+    <value>导航栏位置</value>
+  </data>
+  <data name="Settings_Breadcrumb" xml:space="preserve">
+    <value>设置</value>
+  </data>
+  <data name="MoreButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>更多</value>
+  </data>
+  <data name="UrlErrorText.Text" xml:space="preserve">
+    <value>请填写正确网址</value>
+  </data>
+  <data name="RestoreUrlButton.Content" xml:space="preserve">
+    <value>还原</value>
+  </data>
+  <data name="CancelUrlButton.Content" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="SaveUrlButton.Content" xml:space="preserve">
+    <value>应用</value>
+  </data>
+  <data name="DefaultHomeUrl" xml:space="preserve">
+    <value>https://furry-xiyi.github.io/WinUIonWeb/</value>
+  </data>
+  <data name="TransparentWebViewScript" xml:space="preserve">
+    <value>(()=&gt;{window.__WINUI_ON_WEB_UWP_APP__=true;const root=document.documentElement;root.classList.add('winui-webview-host');const id='winui-on-web-transparent-background';let style=document.getElementById(id);if(!style){style=document.createElement('style');style.id=id;(document.head||root).appendChild(style);}style.textContent=`html.winui-webview-host{--app-bg:transparent!important;background:transparent!important;background-color:transparent!important;}html.winui-webview-host:not(.theme-dark){--host-layer-default:rgba(255,255,255,.50);--host-nav-pane-bg:rgba(243,243,243,.72);--host-flyout-bg:rgba(252,252,252,.78);}html.winui-webview-host.theme-dark{--host-layer-default:rgba(58,58,58,.25);--host-nav-pane-bg:rgba(32,32,32,.72);--host-flyout-bg:rgba(44,44,44,.78);}@media (prefers-color-scheme:dark){html.winui-webview-host:not(.theme-light){--host-layer-default:rgba(58,58,58,.25);--host-nav-pane-bg:rgba(32,32,32,.72);--host-flyout-bg:rgba(44,44,44,.78);}}html.winui-webview-host body,html.winui-webview-host #app,html.winui-webview-host .win-nav-shell{background:transparent!important;background-color:transparent!important;}html.winui-webview-host .win-nav-top-bar{background-color:transparent!important;}html.winui-webview-host .win-nav-content{background:var(--host-layer-default)!important;background-color:var(--host-layer-default)!important;}html.winui-webview-host .win-nav-shell.is-overlay-left .win-nav-left-panel:not(.is-compact){background:var(--host-nav-pane-bg)!important;background-color:var(--host-nav-pane-bg)!important;backdrop-filter:blur(28px) saturate(1.35)!important;-webkit-backdrop-filter:blur(28px) saturate(1.35)!important;}html.winui-webview-host .win-menu-flyout{background:var(--host-flyout-bg)!important;background-color:var(--host-flyout-bg)!important;backdrop-filter:var(--flyout-backdrop)!important;-webkit-backdrop-filter:var(--flyout-backdrop)!important;}`;})()</value>
+  </data>
+  <data name="UrlAutoSuggestBox.Header" xml:space="preserve">
+    <value>自定义网址</value>
+  </data>
+  <data name="UrlAutoSuggestBox.PlaceholderText" xml:space="preserve">
+    <value>请输入网址</value>
+  </data>
+  <data name="DeleteUrlHistoryButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>删除历史记录</value>
+  </data>
+  <data name="SettingsEntryText.Text" xml:space="preserve">
+    <value>应用设置</value>
+  </data>
+  <data name="BehaviorGroup.Text" xml:space="preserve">
+    <value>行为</value>
+  </data>
+  <data name="TransparentCssCard.Header" xml:space="preserve">
+    <value>背景透明 CSS 逻辑</value>
+  </data>
+  <data name="TransparentCssCard.Description" xml:space="preserve">
+    <value>管理注入到网页中的透明背景规则</value>
+  </data>
+  <data name="CssSelectorLabel" xml:space="preserve">
+    <value>选择器</value>
+  </data>
+  <data name="CssHostLabel" xml:space="preserve">
+    <value>网页主机名</value>
+  </data>
+  <data name="CssRuleLabel" xml:space="preserve">
+    <value>CSS 内容</value>
+  </data>
+  <data name="EditCssRuleDialogTitle" xml:space="preserve">
+    <value>编辑 CSS 规则</value>
+  </data>
+  <data name="PerSiteCssToggle.OnContent" xml:space="preserve">
+    <value>按网页设置</value>
+  </data>
+  <data name="PerSiteCssToggle.OffContent" xml:space="preserve">
+    <value>不按网页设置</value>
+  </data>
+  <data name="AddCssRuleButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>添加 CSS 规则</value>
+  </data>
+  <data name="SettingsBackButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>返回</value>
+  </data>
+  <data name="DeleteCssRuleButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>删除 CSS 规则</value>
+  </data>
+  <data name="CssRuleFallbackHeader" xml:space="preserve">
+    <value>CSS 规则</value>
+  </data>
+  <data name="CssRuleDescriptionWithHostFormat" xml:space="preserve">
+    <value>{0} · {1}</value>
+  </data>
+  <data name="CssHostBox.PlaceholderText" xml:space="preserve">
+    <value>网页主机名</value>
+  </data>
+  <data name="CssSelectorBox.PlaceholderText" xml:space="preserve">
+    <value>选择器</value>
+  </data>
+  <data name="CssContentBox.PlaceholderText" xml:space="preserve">
+    <value>CSS 内容</value>
+  </data>
+  <data name="SaveCssRuleButton.Content" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="DeleteCssRuleDialogPrimaryButtonText" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="DeleteCssRuleDialog.Title" xml:space="preserve">
+    <value>删除 CSS 规则</value>
+  </data>
+  <data name="DeleteCssRuleDialog.PrimaryButtonText" xml:space="preserve">
+    <value>删除</value>
+  </data>
+  <data name="DeleteCssRuleDialog.CloseButtonText" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="DeleteCssRuleDialogMessage.Text" xml:space="preserve">
+    <value>确定要删除这条 CSS 规则吗？</value>
+  </data>
+</root>
