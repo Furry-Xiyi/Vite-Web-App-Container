@@ -1,0 +1,12 @@
+<ContentDialog
+    x:Class="WinUIonWebUWP.Dialogs.DownloadFolderAccessDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Style="{StaticResource DefaultContentDialogStyle}"
+    x:Uid="DownloadFolderAccessDialog"
+    DefaultButton="Primary">
+
+    <TextBlock x:Uid="DownloadFolderAccessDialogMessage"
+               TextWrapping="Wrap"
+               FontSize="14"/>
+</ContentDialog>

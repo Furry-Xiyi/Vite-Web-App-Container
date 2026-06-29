@@ -111,6 +111,25 @@
                 </StackPanel>
 
                 <StackPanel Spacing="3">
+                    <TextBlock x:Uid="ContainersGroup"
+                               FontSize="14"
+                               Margin="0,0,0,6"
+                               FontWeight="SemiBold"/>
+
+                    <controls:SettingsCard x:Uid="ContainersManagementCard"
+                                           HorizontalAlignment="Stretch"
+                                           HorizontalContentAlignment="Stretch"
+                                           MinHeight="70"
+                                           Padding="16,0"
+                                           IsClickEnabled="True"
+                                           Click="ContainersManagementCard_Click">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE8A7;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                    </controls:SettingsCard>
+                </StackPanel>
+
+                <StackPanel Spacing="3">
                     <TextBlock x:Uid="SoundGroup"
                                FontSize="14"
                                Margin="0,0,0,6"
@@ -127,6 +146,76 @@
                         <ToggleSwitch x:Name="SoundToggle"
                                       HorizontalAlignment="Right"
                                       Toggled="SoundToggle_Toggled"/>
+                    </controls:SettingsCard>
+                </StackPanel>
+
+                <StackPanel Spacing="3">
+                    <TextBlock x:Uid="DeveloperGroup"
+                               FontSize="14"
+                               Margin="0,0,0,6"
+                               FontWeight="SemiBold"/>
+
+                    <controls:SettingsExpander x:Uid="WebIntegrationCard"
+                                               HorizontalAlignment="Stretch"
+                                               HorizontalContentAlignment="Stretch">
+                        <controls:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xE943;"/>
+                        </controls:SettingsExpander.HeaderIcon>
+                        <controls:SettingsExpander.ItemsHeader>
+                            <StackPanel Spacing="0">
+                                <controls:SettingsCard x:Uid="WebThemeIntegrationCard"
+                                                       HorizontalAlignment="Stretch"
+                                                       HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebThemeIntegrationScriptBox"
+                                             IsReadOnly="True"
+                                             AcceptsReturn="True"
+                                             TextWrapping="NoWrap"
+                                             FontFamily="Consolas"
+                                             FontSize="12"
+                                             MinHeight="128"
+                                             HorizontalAlignment="Stretch"/>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard x:Uid="WebMaterialIntegrationCard"
+                                                       HorizontalAlignment="Stretch"
+                                                       HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebMaterialIntegrationScriptBox"
+                                             IsReadOnly="True"
+                                             AcceptsReturn="True"
+                                             TextWrapping="NoWrap"
+                                             FontFamily="Consolas"
+                                             FontSize="12"
+                                             MinHeight="128"
+                                             HorizontalAlignment="Stretch"/>
+                                </controls:SettingsCard>
+                            </StackPanel>
+                        </controls:SettingsExpander.ItemsHeader>
+                    </controls:SettingsExpander>
+
+                    <controls:SettingsCard x:Uid="DownloadFolderCard"
+                                           HorizontalAlignment="Stretch"
+                                           HorizontalContentAlignment="Stretch"
+                                           MinHeight="70"
+                                           Padding="16,0">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE838;"/>
+                        </controls:SettingsCard.HeaderIcon>
+                        <Grid ColumnSpacing="8"
+                              HorizontalAlignment="Right"
+                              VerticalAlignment="Center"
+                              MaxWidth="480">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="DownloadFolderPathText"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"/>
+                            <Button x:Name="BrowseDownloadFolderButton"
+                                    Grid.Column="1"
+                                    x:Uid="BrowseDownloadFolderButton"
+                                    Click="BrowseDownloadFolderButton_Click"/>
+                        </Grid>
                     </controls:SettingsCard>
                 </StackPanel>
 

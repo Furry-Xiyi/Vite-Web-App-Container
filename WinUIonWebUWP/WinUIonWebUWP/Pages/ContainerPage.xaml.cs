@@ -1,5 +1,6 @@
 using Microsoft.Web.WebView2.Core;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -8,19 +9,28 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using WinUIonWebUWP.Dialogs;
 using Windows.ApplicationModel.Resources;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Navigation;
 
 namespace WinUIonWebUWP.Pages
 {
-    public sealed partial class HomePage : Page
+    public sealed partial class ContainerPage : Page
     {
         private readonly ResourceLoader _loader = new ResourceLoader();
         private static readonly HttpClient _httpClient = new HttpClient();
+        private static readonly System.Threading.SemaphoreSlim WebViewInitializationLock = new System.Threading.SemaphoreSlim(1, 1);
+        private MainPage? _owner;
         private bool _isInitialized;
         private bool _transparentScriptRegistered;
         private bool _hostTitleBarScriptRegistered;
+        private bool _suppressNextNavigationFailureForDownload;
+        private string _lastNavigationUrl = "";
+        private CoreWebView2WebErrorStatus _lastWebErrorStatus = CoreWebView2WebErrorStatus.Unknown;
 
         private const string HostTitleBarScript = @"(()=>{
 window.__WINUI_ON_WEB_UWP_APP__=true;
@@ -151,14 +161,35 @@ if(document.readyState==='loading'){
 }
 })()";
 
-        private const string DocumentInfoScript = @"(()=>{
+private const string DocumentInfoScript = @"(()=>{
 if(window.__WINUI_ON_WEB_DOCUMENT_INFO_OBSERVER__)return;
 window.__WINUI_ON_WEB_DOCUMENT_INFO_OBSERVER__=true;
 const resolve=(value)=>{try{return value?new URL(value,document.baseURI).href:null;}catch{return null;}};
+const unique=(items)=>items.filter((item,index)=>item&&items.indexOf(item)===index);
+const getIconCandidates=()=>{
+  const links=Array.from(document.querySelectorAll('link[rel]')).filter((link)=>{
+    const rel=(link.getAttribute('rel')||'').toLowerCase().split(/\s+/);
+    return rel.includes('icon')||rel.includes('shortcut')||rel.includes('apple-touch-icon');
+  });
+  const hrefOf=(link)=>resolve(link&&link.getAttribute('href'));
+  const rank=(link)=>{
+    const rel=(link.getAttribute('rel')||'').toLowerCase();
+    const type=(link.getAttribute('type')||'').toLowerCase();
+    const href=(link.getAttribute('href')||'').toLowerCase();
+    if(href.endsWith('.ico')||type.includes('icon'))return 0;
+    if(rel.includes('shortcut'))return 1;
+    if(!href.endsWith('.svg')&&!type.includes('svg'))return 2;
+    return 3;
+  };
+  const explicit=links.sort((a,b)=>rank(a)-rank(b)).map(hrefOf);
+  const fallbacks=[resolve('favicon.ico')];
+  if(location.protocol==='http:'||location.protocol==='https:')fallbacks.push(location.origin+'/favicon.ico');
+  return unique(explicit.concat(fallbacks));
+};
 const post=()=>{
-  const icon=document.querySelector('link[rel~=""icon""],link[rel~=""shortcut""]');
+  const icons=getIconCandidates();
   if(window.chrome&&window.chrome.webview&&window.chrome.webview.postMessage){
-  window.chrome.webview.postMessage({source:'WinUIonWeb',type:'documentInfoChanged',title:document.title||'',icon:resolve(icon&&icon.getAttribute('href'))});
+  window.chrome.webview.postMessage({source:'WinUIonWeb',type:'documentInfoChanged',title:document.title||'',icon:icons[0]||null,icons:icons});
   }
 };
 post();
@@ -166,16 +197,24 @@ new MutationObserver(post).observe(document.head||document.documentElement,{chil
 new MutationObserver(post).observe(document.querySelector('title')||document.documentElement,{childList:true,subtree:true,characterData:true});
 })()";
 
-        public HomePage()
+        public ContainerPage()
         {
             this.InitializeComponent();
-            this.Loaded += HomePage_Loaded;
+            this.Loaded += ContainerPage_Loaded;
         }
 
-        private async void HomePage_Loaded(object sender, RoutedEventArgs e)
+        protected override void OnNavigatedTo(NavigationEventArgs e)
+        {
+            base.OnNavigatedTo(e);
+            _owner = e.Parameter as MainPage ?? MainPage.Current;
+        }
+
+        public string CurrentUrl => RootWebView?.Source?.AbsoluteUri ?? _owner?.ContainerHomeUrl ?? SettingsManager.Instance.HomeUrl;
+
+        private async void ContainerPage_Loaded(object sender, RoutedEventArgs e)
         {
             await InitializeWebViewAsync();
-            Navigate(SettingsManager.Instance.HomeUrl);
+            Navigate(_owner?.ContainerHomeUrl ?? SettingsManager.Instance.HomeUrl);
         }
 
         public void Navigate(string url)
@@ -185,23 +224,27 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
                 return;
             }
 
+            _owner?.SetHostedPageLoading(url);
             RootWebView.Source = new Uri(url);
         }
 
         public async void SetHostedWindowActive(bool isActive)
         {
-            if (RootWebView.CoreWebView2 == null)
-            {
-                return;
-            }
-
             try
             {
-                var script = isActive
-                    ? "window.__WINUI_ON_WEB_APP_ACTIVE__=true;window.dispatchEvent(new Event('focus'));"
-                    : "window.__WINUI_ON_WEB_APP_ACTIVE__=false;window.dispatchEvent(new Event('blur'));";
+                await RunOnUiThreadAsync(async () =>
+                {
+                    if (RootWebView.CoreWebView2 == null)
+                    {
+                        return;
+                    }
 
-                await RootWebView.CoreWebView2.ExecuteScriptAsync(script);
+                    var script = isActive
+                        ? "window.__WINUI_ON_WEB_APP_ACTIVE__=true;window.dispatchEvent(new Event('focus'));"
+                        : "window.__WINUI_ON_WEB_APP_ACTIVE__=false;window.dispatchEvent(new Event('blur'));";
+
+                    await RootWebView.CoreWebView2.ExecuteScriptAsync(script);
+                });
             }
             catch (Exception ex)
             {
@@ -227,10 +270,32 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
 
             Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "00000000");
 
-            await RootWebView.EnsureCoreWebView2Async();
-            RootWebView.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
-            RootWebView.CoreWebView2.NavigationCompleted += CoreWebView2_NavigationCompleted;
-            RootWebView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+            var userDataFolder = _owner?.ContainerWebViewDataFolder ?? SettingsManager.Instance.ActiveContainerWebViewDataFolder;
+            Directory.CreateDirectory(userDataFolder);
+
+            await WebViewInitializationLock.WaitAsync();
+            try
+            {
+                await RunOnUiThreadAsync(async () =>
+                {
+                    Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER", userDataFolder);
+                    await RootWebView.EnsureCoreWebView2Async();
+                });
+            }
+            finally
+            {
+                WebViewInitializationLock.Release();
+            }
+            await RunOnUiThreadAsync(() =>
+            {
+                RootWebView.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
+                RootWebView.CoreWebView2.NavigationCompleted += CoreWebView2_NavigationCompleted;
+                RootWebView.CoreWebView2.WebMessageReceived += CoreWebView2_WebMessageReceived;
+                RootWebView.CoreWebView2.NewWindowRequested += CoreWebView2_NewWindowRequested;
+                RootWebView.CoreWebView2.DownloadStarting += CoreWebView2_DownloadStarting;
+                RootWebView.CoreWebView2.PermissionRequested += CoreWebView2_PermissionRequested;
+                return Task.CompletedTask;
+            });
 
             await RegisterHostTitleBarScriptAsync();
             await ApplyTransparentBackgroundAsync();
@@ -240,7 +305,128 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
 
         private void CoreWebView2_NavigationStarting(CoreWebView2 sender, CoreWebView2NavigationStartingEventArgs args)
         {
-            MainPage.Instance?.SetHostedTitleBarVisible(false);
+            _lastNavigationUrl = args.Uri;
+            LoadingOverlay.Visibility = Visibility.Visible;
+            NavigationErrorOverlay.Visibility = Visibility.Collapsed;
+            _owner?.SetHostedPageLoading(args.Uri);
+            _owner?.SetHostedTitleBarVisible(false);
+        }
+
+        private async void CoreWebView2_NewWindowRequested(CoreWebView2 sender, CoreWebView2NewWindowRequestedEventArgs args)
+        {
+            var deferral = args.GetDeferral();
+            try
+            {
+                args.Handled = true;
+                if (!string.IsNullOrWhiteSpace(args.Uri))
+                {
+                    await RunOnUiThreadAsync(async () =>
+                    {
+                        if (_owner != null)
+                        {
+                            await _owner.PromptOpenExternalAsync(args.Uri);
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WinUIonWeb WebView] New window request failed: {ex.Message}");
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        }
+
+        private async void CoreWebView2_DownloadStarting(CoreWebView2 sender, CoreWebView2DownloadStartingEventArgs args)
+        {
+            var deferral = args.GetDeferral();
+            try
+            {
+                if (_owner == null)
+                {
+                    args.Cancel = true;
+                    args.Handled = true;
+                    return;
+                }
+
+                if (!await _owner.EnsureDownloadsAccessForDownloadAsync())
+                {
+                    args.Cancel = true;
+                    args.Handled = true;
+                    return;
+                }
+
+                var suggestedName = Path.GetFileName(args.ResultFilePath);
+                args.ResultFilePath = await _owner.CreateDownloadFilePathAsync(suggestedName);
+                args.Handled = true;
+                _suppressNextNavigationFailureForDownload = true;
+                LoadingOverlay.Visibility = Visibility.Collapsed;
+                NavigationErrorOverlay.Visibility = Visibility.Collapsed;
+                _owner.SetHostedPageLoaded(true);
+                _owner.AddDownload(args.DownloadOperation);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Download] Download start failed: {ex.Message}");
+                args.Cancel = true;
+                args.Handled = true;
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        }
+
+        private async void CoreWebView2_PermissionRequested(CoreWebView2 sender, CoreWebView2PermissionRequestedEventArgs args)
+        {
+            var deferral = args.GetDeferral();
+            try
+            {
+                await RunOnUiThreadAsync(async () =>
+                {
+                    var origin = GetOrigin(args.Uri);
+                    var permissionKind = args.PermissionKind.ToString();
+                    var savedState = SettingsManager.Instance.GetSitePermissionState(origin, permissionKind);
+                    if (savedState == "Allow" || savedState == "Deny")
+                    {
+                        args.State = savedState == "Allow"
+                            ? CoreWebView2PermissionState.Allow
+                            : CoreWebView2PermissionState.Deny;
+                        args.SavesInProfile = false;
+                        args.Handled = true;
+                        return;
+                    }
+
+                    var dialog = new PermissionRequestDialog(
+                        args.Uri,
+                        permissionKind,
+                        args.IsUserInitiated);
+                    var result = await dialog.ShowAsync();
+                    args.State = result == ContentDialogResult.Primary
+                        ? CoreWebView2PermissionState.Allow
+                        : CoreWebView2PermissionState.Deny;
+                    args.SavesInProfile = dialog.RememberDecision;
+                    if (dialog.RememberDecision)
+                    {
+                        SettingsManager.Instance.SetSitePermission(
+                            origin,
+                            permissionKind,
+                            args.State == CoreWebView2PermissionState.Allow ? "Allow" : "Deny");
+                    }
+                    args.Handled = true;
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Permission] Permission request failed: {ex.Message}");
+                args.State = CoreWebView2PermissionState.Deny;
+            }
+            finally
+            {
+                deferral.Complete();
+            }
         }
 
         private void CoreWebView2_WebMessageReceived(CoreWebView2 sender, CoreWebView2WebMessageReceivedEventArgs args)
@@ -282,7 +468,28 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
                         iconUri = parsedIconUri;
                     }
 
-                    MainPage.Instance?.UpdateHostedDocumentInfo(title, iconUri);
+                    var iconCandidates = new List<Uri>();
+                    if (root.TryGetProperty("icons", out var iconsValue)
+                        && iconsValue.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in iconsValue.EnumerateArray())
+                        {
+                            if (item.ValueKind == JsonValueKind.String
+                                && Uri.TryCreate(item.GetString(), UriKind.Absolute, out var candidateUri)
+                                && !iconCandidates.Any(existing => existing.AbsoluteUri == candidateUri.AbsoluteUri))
+                            {
+                                iconCandidates.Add(candidateUri);
+                            }
+                        }
+                    }
+
+                    if (iconUri != null
+                        && !iconCandidates.Any(existing => existing.AbsoluteUri == iconUri.AbsoluteUri))
+                    {
+                        iconCandidates.Insert(0, iconUri);
+                    }
+
+                    _owner?.UpdateHostedDocumentInfo(title, iconUri, iconCandidates);
                     return;
                 }
 
@@ -291,7 +498,7 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
                     && (visible.ValueKind == JsonValueKind.True || visible.ValueKind == JsonValueKind.False))
                 {
                     System.Diagnostics.Debug.WriteLine($"[WinUIonWeb WebView] Host title bar visible = {visible.GetBoolean()}");
-                    MainPage.Instance?.SetHostedTitleBarVisible(visible.GetBoolean());
+                    _owner?.SetHostedTitleBarVisible(visible.GetBoolean());
                 }
             }
             catch (Exception ex)
@@ -325,7 +532,6 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
                 };
 
                 AppThemeManager.ApplyTheme();
-                AppThemeManager.ApplyMaterial();
                 return;
             }
 
@@ -346,23 +552,88 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
 
         private async void CoreWebView2_NavigationCompleted(CoreWebView2 sender, CoreWebView2NavigationCompletedEventArgs args)
         {
+            LoadingOverlay.Visibility = Visibility.Collapsed;
+            _owner?.SetHostedPageLoaded(args.IsSuccess);
+            if (!args.IsSuccess)
+            {
+                if (_suppressNextNavigationFailureForDownload
+                    || args.WebErrorStatus == CoreWebView2WebErrorStatus.OperationCanceled)
+                {
+                    _suppressNextNavigationFailureForDownload = false;
+                    NavigationErrorOverlay.Visibility = Visibility.Collapsed;
+                    _owner?.SetHostedPageLoaded(true);
+                    return;
+                }
+
+                _lastWebErrorStatus = args.WebErrorStatus;
+                ShowNavigationError(args.WebErrorStatus);
+                return;
+            }
+
+            _suppressNextNavigationFailureForDownload = false;
+            NavigationErrorOverlay.Visibility = Visibility.Collapsed;
             await ApplyTransparentBackgroundAsync();
             await UpdateDocumentInfoAsync();
             await DetectHostTitleBarFromIndexAsync();
             await DetectHostTitleBarAsync();
-            SetHostedWindowActive(MainPage.Instance?.IsWindowActive ?? true);
+            SetHostedWindowActive(_owner?.IsWindowActive ?? true);
         }
 
-        private async Task DetectHostTitleBarFromIndexAsync()
+        private void ShowNavigationError(CoreWebView2WebErrorStatus errorStatus)
         {
-            if (RootWebView.CoreWebView2 == null)
+            NavigationErrorOverlay.Visibility = Visibility.Visible;
+            NavigationErrorUrlText.Text = _lastNavigationUrl;
+            NavigationErrorMessage.Text = string.Format(
+                GetResourceString("NavigationErrorMessageFormat"),
+                GetNavigationErrorText(errorStatus));
+        }
+
+        private string GetNavigationErrorText(CoreWebView2WebErrorStatus errorStatus)
+        {
+            var key = "NavigationError_" + errorStatus;
+            var value = GetResourceString(key);
+            return value == key ? errorStatus.ToString() : value;
+        }
+
+        private string GetResourceString(string key)
+        {
+            var value = _loader.GetString(key);
+            return string.IsNullOrEmpty(value) ? key : value;
+        }
+
+        private void RetryNavigationButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!string.IsNullOrWhiteSpace(_lastNavigationUrl))
+            {
+                Navigate(_lastNavigationUrl);
+            }
+        }
+
+        private void CopyNavigationUrlButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrWhiteSpace(_lastNavigationUrl))
             {
                 return;
             }
 
+            var dataPackage = new DataPackage();
+            dataPackage.SetText(_lastNavigationUrl);
+            Clipboard.SetContent(dataPackage);
+        }
+
+        private async void OpenNavigationExternalButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_owner != null)
+            {
+                await _owner.PromptOpenExternalAsync(_lastNavigationUrl);
+            }
+        }
+
+        private async Task DetectHostTitleBarFromIndexAsync()
+        {
             try
             {
-                var source = RootWebView.CoreWebView2.Source;
+                var source = await GetWebViewSourceAsync();
                 if (string.IsNullOrWhiteSpace(source) || !Uri.TryCreate(source, UriKind.Absolute, out var pageUri))
                 {
                     System.Diagnostics.Debug.WriteLine("[WinUIonWeb WebView] Cannot detect manifest: invalid page uri.");
@@ -402,17 +673,77 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
 
                 System.Diagnostics.Debug.WriteLine($"[WinUIonWeb WebView] Manifest has window-controls-overlay = {hasWindowControlsOverlay}");
 
-                await RegisterHostTitleBarScriptAsync();
-                MainPage.Instance?.SetHostedTitleBarVisible(hasWindowControlsOverlay);
+                await RunOnUiThreadAsync(async () =>
+                {
+                    await RegisterHostTitleBarScriptCoreAsync();
+                    _owner?.SetHostedTitleBarVisible(hasWindowControlsOverlay);
 
-                await RootWebView.CoreWebView2.ExecuteScriptAsync(
-                    $"window.__WINUI_ON_WEB_SET_WCO_VISIBLE__&&window.__WINUI_ON_WEB_SET_WCO_VISIBLE__({hasWindowControlsOverlay.ToString().ToLowerInvariant()});");
-                SetHostedWindowActive(MainPage.Instance?.IsWindowActive ?? true);
+                    if (RootWebView.CoreWebView2 != null)
+                    {
+                        await RootWebView.CoreWebView2.ExecuteScriptAsync(
+                            $"window.__WINUI_ON_WEB_SET_WCO_VISIBLE__&&window.__WINUI_ON_WEB_SET_WCO_VISIBLE__({hasWindowControlsOverlay.ToString().ToLowerInvariant()});");
+                    }
+                    SetHostedWindowActive(_owner?.IsWindowActive ?? true);
+                });
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[WinUIonWeb WebView] Manifest detection failed: {ex.Message}");
             }
+        }
+
+        private Task<string?> GetWebViewSourceAsync()
+        {
+            return RunOnUiThreadAsync(() =>
+            {
+                return Task.FromResult(RootWebView.CoreWebView2?.Source);
+            });
+        }
+
+        private async Task RunOnUiThreadAsync(Func<Task> action)
+        {
+            if (Dispatcher.HasThreadAccess)
+            {
+                await action();
+                return;
+            }
+
+            var completion = new TaskCompletionSource<bool>();
+            await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+            {
+                try
+                {
+                    await action();
+                    completion.SetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    completion.SetException(ex);
+                }
+            });
+            await completion.Task;
+        }
+
+        private async Task<T> RunOnUiThreadAsync<T>(Func<Task<T>> action)
+        {
+            if (Dispatcher.HasThreadAccess)
+            {
+                return await action();
+            }
+
+            var completion = new TaskCompletionSource<T>();
+            await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
+            {
+                try
+                {
+                    completion.SetResult(await action());
+                }
+                catch (Exception ex)
+                {
+                    completion.SetException(ex);
+                }
+            });
+            return await completion.Task;
         }
 
         private static async Task<string?> ReadTextAsync(Uri uri)
@@ -473,7 +804,23 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             return new Uri(pageUri, manifestHref);
         }
 
+        private static string GetOrigin(string uriText)
+        {
+            if (Uri.TryCreate(uriText, UriKind.Absolute, out var uri)
+                && !string.IsNullOrWhiteSpace(uri.Host))
+            {
+                return uri.GetLeftPart(UriPartial.Authority);
+            }
+
+            return uriText;
+        }
+
         private async Task RegisterHostTitleBarScriptAsync()
+        {
+            await RunOnUiThreadAsync(RegisterHostTitleBarScriptCoreAsync);
+        }
+
+        private async Task RegisterHostTitleBarScriptCoreAsync()
         {
             if (RootWebView.CoreWebView2 == null)
             {
@@ -491,39 +838,48 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
 
         private async Task DetectHostTitleBarAsync()
         {
-            if (RootWebView.CoreWebView2 == null)
+            await RunOnUiThreadAsync(async () =>
             {
-                return;
-            }
+                if (RootWebView.CoreWebView2 == null)
+                {
+                    return;
+                }
 
-            await RootWebView.CoreWebView2.ExecuteScriptAsync("window.__WINUI_ON_WEB_DETECT_MANIFEST_TITLEBAR__&&window.__WINUI_ON_WEB_DETECT_MANIFEST_TITLEBAR__();window.__WINUI_ON_WEB_DETECT_TITLEBAR__&&window.__WINUI_ON_WEB_DETECT_TITLEBAR__();");
+                await RootWebView.CoreWebView2.ExecuteScriptAsync("window.__WINUI_ON_WEB_DETECT_MANIFEST_TITLEBAR__&&window.__WINUI_ON_WEB_DETECT_MANIFEST_TITLEBAR__();window.__WINUI_ON_WEB_DETECT_TITLEBAR__&&window.__WINUI_ON_WEB_DETECT_TITLEBAR__();");
+            });
         }
 
         private async Task ApplyTransparentBackgroundAsync()
         {
-            if (RootWebView.CoreWebView2 == null)
+            await RunOnUiThreadAsync(async () =>
             {
-                return;
-            }
+                if (RootWebView.CoreWebView2 == null)
+                {
+                    return;
+                }
 
-            var script = GetTransparentWebViewScript();
-            if (!_transparentScriptRegistered)
-            {
-                await RootWebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(script);
-                _transparentScriptRegistered = true;
-            }
+                var script = GetTransparentWebViewScript();
+                if (!_transparentScriptRegistered)
+                {
+                    await RootWebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(script);
+                    _transparentScriptRegistered = true;
+                }
 
-            await RootWebView.CoreWebView2.ExecuteScriptAsync(script);
+                await RootWebView.CoreWebView2.ExecuteScriptAsync(script);
+            });
         }
 
         private async Task UpdateDocumentInfoAsync()
         {
-            if (RootWebView.CoreWebView2 == null)
+            await RunOnUiThreadAsync(async () =>
             {
-                return;
-            }
+                if (RootWebView.CoreWebView2 == null)
+                {
+                    return;
+                }
 
-            await RootWebView.CoreWebView2.ExecuteScriptAsync(DocumentInfoScript);
+                await RootWebView.CoreWebView2.ExecuteScriptAsync(DocumentInfoScript);
+            });
         }
 
         private string GetTransparentWebViewScript()

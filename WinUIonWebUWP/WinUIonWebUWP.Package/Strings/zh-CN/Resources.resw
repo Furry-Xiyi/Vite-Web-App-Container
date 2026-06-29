@@ -121,10 +121,7 @@
     <value>Vite/Web 应用容器</value>
   </data>
   <data name="HomeItem.Content" xml:space="preserve">
-    <value>主页</value>
-  </data>
-  <data name="HomePageWelcomeText.Text" xml:space="preserve">
-    <value>欢迎来到主页，这是一个 UWP 模板应用</value>
+    <value>容器页</value>
   </data>
   <data name="AppearanceGroup.Text" xml:space="preserve">
     <value>外观</value>
@@ -186,9 +183,6 @@
   <data name="DialogMessage.Text" xml:space="preserve">
     <value>是否允许？</value>
   </data>
-  <data name="HomePageJoinButton.Content" xml:space="preserve">
-    <value>查看Github仓库</value>
-  </data>
   <data name="Settings_SoundCard.Description" xml:space="preserve">
     <value>控制应用中的交互提示音</value>
   </data>
@@ -246,18 +240,6 @@
   <data name="TransparentCssCard.Description" xml:space="preserve">
     <value>管理注入到网页中的透明背景规则</value>
   </data>
-  <data name="CssSelectorLabel" xml:space="preserve">
-    <value>选择器</value>
-  </data>
-  <data name="CssHostLabel" xml:space="preserve">
-    <value>网页主机名</value>
-  </data>
-  <data name="CssRuleLabel" xml:space="preserve">
-    <value>CSS 内容</value>
-  </data>
-  <data name="EditCssRuleDialogTitle" xml:space="preserve">
-    <value>编辑 CSS 规则</value>
-  </data>
   <data name="PerSiteCssToggle.OnContent" xml:space="preserve">
     <value>按网页设置</value>
   </data>
@@ -305,5 +287,439 @@
   </data>
   <data name="DeleteCssRuleDialogMessage.Text" xml:space="preserve">
     <value>确定要删除这条 CSS 规则吗？</value>
+  </data>
+  <data name="DeveloperGroup.Text" xml:space="preserve">
+    <value>开发者</value>
+  </data>
+  <data name="WebIntegrationCard.Header" xml:space="preserve">
+    <value>Web 应用接入</value>
+  </data>
+  <data name="WebIntegrationCard.Description" xml:space="preserve">
+    <value>说明 Vite 或普通 Web 应用如何请求修改应用主题与背景材质</value>
+  </data>
+  <data name="WebThemeIntegrationCard.Header" xml:space="preserve">
+    <value>主题</value>
+  </data>
+  <data name="WebThemeIntegrationCard.Description" xml:space="preserve">
+    <value>网页可请求宿主应用切换为跟随系统、浅色或深色主题</value>
+  </data>
+  <data name="WebThemeIntegrationScriptBox.Text" xml:space="preserve">
+    <value>const setWinUIHostTheme = (value) =&gt; {
+  if (!window.__WINUI_ON_WEB_UWP_APP__ || !window.chrome?.webview) {
+    return;
+  }
+
+  window.chrome.webview.postMessage({
+    source: 'WinUIonWeb',
+    type: 'appSettingChanged',
+    key: 'theme',
+    value
+  });
+};
+
+setWinUIHostTheme('system');
+setWinUIHostTheme('light');
+setWinUIHostTheme('dark');</value>
+  </data>
+  <data name="WebMaterialIntegrationCard.Header" xml:space="preserve">
+    <value>材质</value>
+  </data>
+  <data name="WebMaterialIntegrationCard.Description" xml:space="preserve">
+    <value>网页可请求宿主应用切换背景材质；仅在 UWP WebView 宿主内生效</value>
+  </data>
+  <data name="WebMaterialIntegrationScriptBox.Text" xml:space="preserve">
+    <value>const setWinUIHostMaterial = (value) =&gt; {
+  if (!window.__WINUI_ON_WEB_UWP_APP__ || !window.chrome?.webview) {
+    return;
+  }
+
+  window.chrome.webview.postMessage({
+    source: 'WinUIonWeb',
+    type: 'appSettingChanged',
+    key: 'material',
+    value
+  });
+};
+
+setWinUIHostMaterial('mica');
+setWinUIHostMaterial('acrylic');</value>
+  </data>
+  <data name="PinContainerText.Text" xml:space="preserve">
+    <value>固定当前网页到开始菜单</value>
+  </data>
+  <data name="PinUnavailableInfoButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>详情</value>
+  </data>
+  <data name="PinUnavailableTeachingTip.Title" xml:space="preserve">
+    <value>此操作当前不可用</value>
+  </data>
+  <data name="PinUnavailableTeachingTip.Subtitle" xml:space="preserve">
+    <value>请等待网页完整加载后重试</value>
+  </data>
+  <data name="PinUnavailableTeachingTipContent.Text" xml:space="preserve">
+    <value>若不等网页加载完就固定会导致应用名称丢失</value>
+  </data>
+  <data name="PinUnavailableTeachingTipActionText.Text" xml:space="preserve">
+    <value>我知道了</value>
+  </data>
+  <data name="RenameTileDialog.Title" xml:space="preserve">
+    <value>需要修改应用名称</value>
+  </data>
+  <data name="RenameTileDialog.PrimaryButtonText" xml:space="preserve">
+    <value>修改名称并继续</value>
+  </data>
+  <data name="RenameTileDialog.CloseButtonText" xml:space="preserve">
+    <value>不添加</value>
+  </data>
+  <data name="RenameTileDialogMessage.Text" xml:space="preserve">
+    <value>此名称为空或已被固定到开始菜单的项目使用。</value>
+  </data>
+  <data name="RenameTileDialogNameTextBox.Header" xml:space="preserve">
+    <value>应用名称</value>
+  </data>
+  <data name="RenameTileDialogNameErrorText.Text" xml:space="preserve">
+    <value>请先修改名称</value>
+  </data>
+  <data name="DownloadsEntryText.Text" xml:space="preserve">
+    <value>下载</value>
+  </data>
+  <data name="DownloadTitleBarButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>下载</value>
+  </data>
+  <data name="DownloadTitleBarProgressToolTipFormat" xml:space="preserve">
+    <value>下载 - {0}%</value>
+  </data>
+  <data name="DownloadsPanelTitle.Text" xml:space="preserve">
+    <value>下载</value>
+  </data>
+  <data name="DownloadsEmptyText.Text" xml:space="preserve">
+    <value>暂无下载内容</value>
+  </data>
+  <data name="OpenDownloadsFolderButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>打开下载文件夹</value>
+  </data>
+  <data name="PinDownloadsPanelButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>固定到标题栏</value>
+  </data>
+  <data name="OpenDownloadItemButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>打开文件</value>
+  </data>
+  <data name="CancelDownloadItemButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>取消下载</value>
+  </data>
+  <data name="PinDownloadsToTitleBarMenuItem.Text" xml:space="preserve">
+    <value>固定到标题栏</value>
+  </data>
+  <data name="UnpinDownloadsFromTitleBarMenuItem.Text" xml:space="preserve">
+    <value>从标题栏取消固定</value>
+  </data>
+  <data name="DownloadItemUnknownFile" xml:space="preserve">
+    <value>下载文件</value>
+  </data>
+  <data name="DownloadStatusInProgressFormat" xml:space="preserve">
+    <value>已下载 {0} · {1}</value>
+  </data>
+  <data name="DownloadStatusInProgressWithTotalFormat" xml:space="preserve">
+    <value>已下载 {0}，共 {1} · {2}</value>
+  </data>
+  <data name="DownloadStatusCompleted" xml:space="preserve">
+    <value>已完成</value>
+  </data>
+  <data name="DownloadStatusInterrupted" xml:space="preserve">
+    <value>下载中断</value>
+  </data>
+  <data name="DownloadUnitBytes" xml:space="preserve">
+    <value>B</value>
+  </data>
+  <data name="DownloadUnitKilobytes" xml:space="preserve">
+    <value>KB</value>
+  </data>
+  <data name="DownloadUnitMegabytes" xml:space="preserve">
+    <value>MB</value>
+  </data>
+  <data name="DownloadUnitGigabytes" xml:space="preserve">
+    <value>GB</value>
+  </data>
+  <data name="WebViewLoadingText.Text" xml:space="preserve">
+    <value>正在加载</value>
+  </data>
+  <data name="NavigationErrorTitle.Text" xml:space="preserve">
+    <value>无法打开此页面</value>
+  </data>
+  <data name="NavigationErrorMessageFormat" xml:space="preserve">
+    <value>页面加载失败：{0}</value>
+  </data>
+  <data name="RetryNavigationButton.Content" xml:space="preserve">
+    <value>重试</value>
+  </data>
+  <data name="CopyNavigationUrlButton.Content" xml:space="preserve">
+    <value>复制链接</value>
+  </data>
+  <data name="OpenNavigationExternalButton.Content" xml:space="preserve">
+    <value>在浏览器中打开</value>
+  </data>
+  <data name="NavigationError_Unknown" xml:space="preserve">
+    <value>未知错误</value>
+  </data>
+  <data name="NavigationError_CertificateCommonNameIsIncorrect" xml:space="preserve">
+    <value>证书名称不匹配</value>
+  </data>
+  <data name="NavigationError_CertificateExpired" xml:space="preserve">
+    <value>证书已过期</value>
+  </data>
+  <data name="NavigationError_ClientCertificateContainsErrors" xml:space="preserve">
+    <value>客户端证书存在错误</value>
+  </data>
+  <data name="NavigationError_CertificateRevoked" xml:space="preserve">
+    <value>证书已被吊销</value>
+  </data>
+  <data name="NavigationError_CertificateIsInvalid" xml:space="preserve">
+    <value>证书无效</value>
+  </data>
+  <data name="NavigationError_ServerUnreachable" xml:space="preserve">
+    <value>无法连接到服务器</value>
+  </data>
+  <data name="NavigationError_Timeout" xml:space="preserve">
+    <value>连接超时</value>
+  </data>
+  <data name="NavigationError_ErrorHttpInvalidServerResponse" xml:space="preserve">
+    <value>服务器响应无效</value>
+  </data>
+  <data name="NavigationError_ConnectionAborted" xml:space="preserve">
+    <value>连接已中止</value>
+  </data>
+  <data name="NavigationError_ConnectionReset" xml:space="preserve">
+    <value>连接已重置</value>
+  </data>
+  <data name="NavigationError_Disconnected" xml:space="preserve">
+    <value>网络已断开</value>
+  </data>
+  <data name="NavigationError_CannotConnect" xml:space="preserve">
+    <value>无法建立连接</value>
+  </data>
+  <data name="NavigationError_HostNameNotResolved" xml:space="preserve">
+    <value>无法解析主机名</value>
+  </data>
+  <data name="NavigationError_OperationCanceled" xml:space="preserve">
+    <value>操作已取消</value>
+  </data>
+  <data name="NavigationError_RedirectFailed" xml:space="preserve">
+    <value>重定向失败</value>
+  </data>
+  <data name="NavigationError_UnexpectedError" xml:space="preserve">
+    <value>出现意外错误</value>
+  </data>
+  <data name="PermissionRequestDialog.Title" xml:space="preserve">
+    <value>网站权限请求</value>
+  </data>
+  <data name="PermissionRequestDialog.PrimaryButtonText" xml:space="preserve">
+    <value>允许</value>
+  </data>
+  <data name="PermissionRequestDialog.SecondaryButtonText" xml:space="preserve">
+    <value>拒绝</value>
+  </data>
+  <data name="PermissionRequestMessageFormat" xml:space="preserve">
+    <value>此网站想要使用“{0}”。</value>
+  </data>
+  <data name="PermissionRequestOriginFormat" xml:space="preserve">
+    <value>来源：{0}</value>
+  </data>
+  <data name="PermissionRequestUserInitiated" xml:space="preserve">
+    <value>此请求由用户操作触发</value>
+  </data>
+  <data name="PermissionRequestNotUserInitiated" xml:space="preserve">
+    <value>此请求不是由用户操作触发</value>
+  </data>
+  <data name="RememberPermissionDecisionCheckBox.Content" xml:space="preserve">
+    <value>记住此选择</value>
+  </data>
+  <data name="PermissionKind_UnknownPermission" xml:space="preserve">
+    <value>未知权限</value>
+  </data>
+  <data name="PermissionKind_Microphone" xml:space="preserve">
+    <value>麦克风</value>
+  </data>
+  <data name="PermissionKind_Camera" xml:space="preserve">
+    <value>摄像头</value>
+  </data>
+  <data name="PermissionKind_Geolocation" xml:space="preserve">
+    <value>位置</value>
+  </data>
+  <data name="PermissionKind_Notifications" xml:space="preserve">
+    <value>通知</value>
+  </data>
+  <data name="PermissionKind_OtherSensors" xml:space="preserve">
+    <value>传感器</value>
+  </data>
+  <data name="PermissionKind_ClipboardRead" xml:space="preserve">
+    <value>剪贴板读取</value>
+  </data>
+  <data name="PermissionKind_MultipleAutomaticDownloads" xml:space="preserve">
+    <value>多个自动下载</value>
+  </data>
+  <data name="PermissionKind_FileReadWrite" xml:space="preserve">
+    <value>文件读写</value>
+  </data>
+  <data name="PermissionKind_Autoplay" xml:space="preserve">
+    <value>自动播放</value>
+  </data>
+  <data name="PermissionKind_LocalFonts" xml:space="preserve">
+    <value>本地字体</value>
+  </data>
+  <data name="PermissionKind_MidiSystemExclusiveMessages" xml:space="preserve">
+    <value>MIDI 系统专有消息</value>
+  </data>
+  <data name="PermissionKind_WindowManagement" xml:space="preserve">
+    <value>窗口管理</value>
+  </data>
+  <data name="NavigationError_ValidAuthenticationCredentialsRequired" xml:space="preserve">
+    <value>需要有效的身份验证凭据</value>
+  </data>
+  <data name="NavigationError_ValidProxyAuthenticationRequired" xml:space="preserve">
+    <value>需要有效的代理身份验证凭据</value>
+  </data>
+  <data name="DownloadDefaultFileName" xml:space="preserve">
+    <value>下载文件</value>
+  </data>
+  <data name="PinDownloadsPanelButtonToolTip" xml:space="preserve">
+    <value>固定到标题栏</value>
+  </data>
+  <data name="UnpinDownloadsPanelButtonToolTip" xml:space="preserve">
+    <value>从标题栏取消固定</value>
+  </data>
+  <data name="ContainerManagement_Breadcrumb" xml:space="preserve">
+    <value>容器管理</value>
+  </data>
+  <data name="ContainersGroup.Text" xml:space="preserve">
+    <value>容器</value>
+  </data>
+  <data name="ContainersManagementCard.Header" xml:space="preserve">
+    <value>容器管理</value>
+  </data>
+  <data name="ContainersManagementCard.Description" xml:space="preserve">
+    <value>管理已创建的网页容器、网址、图标和数据</value>
+  </data>
+  <data name="ContainerManagementGroup.Text" xml:space="preserve">
+    <value>已创建的容器</value>
+  </data>
+  <data name="ContainerOpenButton.Content" xml:space="preserve">
+    <value>打开</value>
+  </data>
+  <data name="ContainerNameBox.Header" xml:space="preserve">
+    <value>名称</value>
+  </data>
+  <data name="ContainerUrlBox.Header" xml:space="preserve">
+    <value>网址</value>
+  </data>
+  <data name="ContainerRefreshIconButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>刷新图标</value>
+  </data>
+  <data name="ContainerClearDataButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>清理容器数据</value>
+  </data>
+  <data name="ContainerUnpinButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>从开始菜单取消固定</value>
+  </data>
+  <data name="ContainerDeleteButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>删除容器</value>
+  </data>
+  <data name="ContainerSaveButton.Content" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="SitePermissions_Breadcrumb" xml:space="preserve">
+    <value>站点权限设置</value>
+  </data>
+  <data name="SitePermissionsEntryText.Text" xml:space="preserve">
+    <value>站点权限设置</value>
+  </data>
+  <data name="SitePermissionsGroup.Text" xml:space="preserve">
+    <value>当前站点权限</value>
+  </data>
+  <data name="SitePermissionsOriginFormat" xml:space="preserve">
+    <value>来源：{0}</value>
+  </data>
+  <data name="PermissionStateAsk.Content" xml:space="preserve">
+    <value>询问</value>
+  </data>
+  <data name="PermissionStateAllow.Content" xml:space="preserve">
+    <value>允许</value>
+  </data>
+  <data name="PermissionStateDeny.Content" xml:space="preserve">
+    <value>拒绝</value>
+  </data>
+  <data name="OpenDownloadInlineButton.Content" xml:space="preserve">
+    <value>打开文件</value>
+  </data>
+  <data name="ToggleDownloadItemButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>暂停或继续</value>
+  </data>
+  <data name="OpenDownloadItemMenuItem.Text" xml:space="preserve">
+    <value>打开</value>
+  </data>
+  <data name="ShowDownloadInFolderMenuItem.Text" xml:space="preserve">
+    <value>在文件夹中显示</value>
+  </data>
+  <data name="PauseDownloadItemMenuItem.Text" xml:space="preserve">
+    <value>暂停</value>
+  </data>
+  <data name="ResumeDownloadItemMenuItem.Text" xml:space="preserve">
+    <value>继续</value>
+  </data>
+  <data name="CancelDownloadItemMenuItem.Text" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="RemoveDownloadItemMenuItem.Text" xml:space="preserve">
+    <value>从列表中移除</value>
+  </data>
+  <data name="DownloadStatusPaused" xml:space="preserve">
+    <value>已暂停</value>
+  </data>
+  <data name="DownloadSpeedFormat" xml:space="preserve">
+    <value>{0}/秒</value>
+  </data>
+  <data name="DownloadStatusDeleted" xml:space="preserve">
+    <value>文件已删除</value>
+  </data>
+  <data name="SettingsPageMigratedTitle.Text" xml:space="preserve">
+    <value>此页面已迁移</value>
+  </data>
+  <data name="SettingsPageMigratedDescription.Text" xml:space="preserve">
+    <value>设置功能已迁移至 AboutPage。后续请在 AboutPage 中添加和维护设置项。</value>
+  </data>
+  <data name="CopyDownloadLinkMenuItem.Text" xml:space="preserve">
+    <value>复制下载链接</value>
+  </data>
+  <data name="ReportUnsafeDownloadMenuItem.Text" xml:space="preserve">
+    <value>将此文件报告为不安全</value>
+  </data>
+  <data name="ShowDownloadInFolderButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>在文件夹中显示</value>
+  </data>
+  <data name="DeleteDownloadFileButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>删除文件</value>
+  </data>
+  <data name="DownloadFolderCard.Header" xml:space="preserve">
+    <value>下载文件默认保存路径</value>
+  </data>
+  <data name="DownloadFolderCard.Description" xml:space="preserve">
+    <value>设置 WebView 下载文件保存到的位置</value>
+  </data>
+  <data name="BrowseDownloadFolderButton.Content" xml:space="preserve">
+    <value>浏览</value>
+  </data>
+  <data name="DownloadFolderAccessDialog.Title" xml:space="preserve">
+    <value>需要开启文件系统访问</value>
+  </data>
+  <data name="DownloadFolderAccessDialog.PrimaryButtonText" xml:space="preserve">
+    <value>打开设置</value>
+  </data>
+  <data name="DownloadFolderAccessDialog.CloseButtonText" xml:space="preserve">
+    <value>稍后</value>
+  </data>
+  <data name="DownloadFolderAccessDialogMessage.Text" xml:space="preserve">
+    <value>下载需要访问默认保存路径。请在 Windows 设置中允许此应用访问文件系统后重试；如果已经开启，请重启应用，或在 AboutPage 的下载路径设置中重新选择文件夹。</value>
+  </data>
+  <data name="DeleteDownloadFileMenuItem.Text" xml:space="preserve">
+    <value>删除文件</value>
   </data>
 </root>

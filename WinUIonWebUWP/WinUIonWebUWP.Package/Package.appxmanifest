@@ -5,15 +5,14 @@
   xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
-  xmlns:uap6="http://schemas.microsoft.com/appx/manifest/uap/windows10/6"
   xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
-  xmlns:iot="http://schemas.microsoft.com/appx/manifest/iot/windows10"
-  IgnorableNamespaces="uap uap5 mp uap6 uap3 iot">
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap5 mp uap3 rescap">
 
   <Identity
     Name="28AE62C8.FurryXiyi.Vite-WebAppContainer"
     Publisher="CN=69199A48-A765-47C7-BD15-A581600DBBC9"
-    Version="1.0.0.0" />
+    Version="1.1.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="09ddef43-c36d-4a4a-aa39-e9baee53689d" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
@@ -48,44 +47,11 @@
   </Applications>
 
   <Capabilities>
-
-  
-
   <Capability Name="internetClient"/>
-
-  
-
   <Capability Name="privateNetworkClientServer"/>
-
-  
-
-  <uap6:Capability Name="graphicsCapture"/>
-
-  
-
-  <uap:Capability Name="picturesLibrary"/>
-
-  
-
-  <uap:Capability Name="videosLibrary"/>
-
-  
-
-  <uap:Capability Name="musicLibrary"/>
-
-  
-
-  <iot:Capability Name="systemManagement"/>
-
-  
-
+  <rescap:Capability Name="broadFileSystemAccess"/>
   <DeviceCapability Name="webcam"/>
-
-  
-
   <DeviceCapability Name="microphone"/>
-
-  
-
-  <DeviceCapability Name="location"/></Capabilities>
+  <DeviceCapability Name="location"/>
+  </Capabilities>
 </Package>

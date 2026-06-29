@@ -3,6 +3,8 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Resources;
+using Windows.Storage.AccessCache;
+using Windows.Storage.Pickers;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media;
@@ -28,6 +30,7 @@ namespace WinUIonWebUWP.Pages
             LoadAppInfo();
             PerSiteCssToggle.IsOn = SettingsManager.Instance.UsePerSiteTransparentCss;
             UpdateRuleHostVisibility();
+            UpdateDownloadFolderPathText();
             SoundToggle.IsOn = SettingsManager.Instance.EnableSound;
             _isInitializing = false;
         }
@@ -49,7 +52,7 @@ namespace WinUIonWebUWP.Pages
                 var v = Package.Current.Id.Version;
                 TxtVersion.Text = $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
                 ImgAppIcon.Source = new BitmapImage(Package.Current.Logo);
-                TxtCopyright.Text = $"©{DateTime.Now.Year} {Package.Current.PublisherDisplayName}";
+                TxtCopyright.Text = $"©{DateTime.Now.Year} {Package.Current.PublisherDisplayName}。保留所有权利。";
             }
             catch (Exception ex)
             {
@@ -88,7 +91,7 @@ namespace WinUIonWebUWP.Pages
             if (!string.IsNullOrWhiteSpace(rule.Id))
             {
                 SettingsManager.Instance.RemoveTransparentCssRule(rule.Id);
-                MainPage.Instance?.GetHomePageForSettings()?.RefreshTransparentCss();
+                MainPage.Current?.GetContainerPageForSettings()?.RefreshTransparentCss();
             }
 
             Rules.Remove(rule);
@@ -114,7 +117,7 @@ namespace WinUIonWebUWP.Pages
                 button.Visibility = Visibility.Collapsed;
             }
             RefreshRulesView();
-            MainPage.Instance?.GetHomePageForSettings()?.RefreshTransparentCss();
+            MainPage.Current?.GetContainerPageForSettings()?.RefreshTransparentCss();
         }
 
         private void CssRuleTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -156,7 +159,7 @@ namespace WinUIonWebUWP.Pages
             if (_isInitializing) return;
 
             SettingsManager.Instance.EnableSound = SoundToggle.IsOn;
-            MainPage.Instance?.ApplySettings();
+            MainPage.Current?.ApplySettings();
         }
 
         private void PerSiteCssToggle_Toggled(object sender, RoutedEventArgs e)
@@ -166,7 +169,7 @@ namespace WinUIonWebUWP.Pages
             SettingsManager.Instance.UsePerSiteTransparentCss = PerSiteCssToggle.IsOn;
             UpdateRuleHostVisibility();
             RefreshRulesView();
-            MainPage.Instance?.GetHomePageForSettings()?.RefreshTransparentCss();
+            MainPage.Current?.GetContainerPageForSettings()?.RefreshTransparentCss();
         }
 
         private void UpdateRuleHostVisibility()
@@ -222,13 +225,45 @@ namespace WinUIonWebUWP.Pages
 
         private void OpenExternalLink(object sender, RoutedEventArgs e)
         {
-            MainPage.Instance?.OpenExternalLink(sender, e);
+            MainPage.Current?.OpenExternalLink(sender, e);
+        }
+
+        private void UpdateDownloadFolderPathText()
+        {
+            DownloadFolderPathText.Text = SettingsManager.Instance.DownloadFolderPath;
+        }
+
+        private async void BrowseDownloadFolderButton_Click(object sender, RoutedEventArgs e)
+        {
+            var picker = new FolderPicker
+            {
+                SuggestedStartLocation = PickerLocationId.Downloads,
+                ViewMode = PickerViewMode.List
+            };
+            picker.FileTypeFilter.Add("*");
+
+            var folder = await picker.PickSingleFolderAsync();
+            if (folder == null)
+            {
+                return;
+            }
+
+            StorageApplicationPermissions.FutureAccessList.AddOrReplace(
+                SettingsManager.DownloadFolderAccessToken,
+                folder);
+            SettingsManager.Instance.DownloadFolderToken = SettingsManager.DownloadFolderAccessToken;
+            SettingsManager.Instance.DownloadFolderPath = folder.Path;
+            UpdateDownloadFolderPathText();
+        }
+
+        private void ContainersManagementCard_Click(object sender, RoutedEventArgs e)
+        {
+            MainPage.Current?.OpenContainerManagementPage();
         }
     }
 
     public sealed class TransparentCssRuleViewModel
     {
-        private static readonly ResourceLoader Loader = new ResourceLoader();
         private string _host;
         private string _selector;
         private string _css;
@@ -302,7 +337,7 @@ namespace WinUIonWebUWP.Pages
         }
 
         public string Header => string.IsNullOrWhiteSpace(Selector)
-            ? Loader.GetString("CssRuleFallbackHeader")
+            ? GetResourceString("CssRuleFallbackHeader")
             : Selector;
 
         public string Description
@@ -315,7 +350,7 @@ namespace WinUIonWebUWP.Pages
                     return css;
                 }
 
-                return string.Format(Loader.GetString("CssRuleDescriptionWithHostFormat"), Host.Trim(), css);
+                return string.Format(GetResourceString("CssRuleDescriptionWithHostFormat"), Host.Trim(), css);
             }
         }
 
@@ -331,6 +366,11 @@ namespace WinUIonWebUWP.Pages
             {
                 IsDirty = true;
             }
+        }
+
+        private static string GetResourceString(string key)
+        {
+            return new ResourceLoader().GetString(key);
         }
     }
 }

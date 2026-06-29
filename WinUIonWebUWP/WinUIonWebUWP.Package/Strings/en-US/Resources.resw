@@ -121,10 +121,7 @@
     <value>Vite/Web App Container</value>
   </data>
   <data name="HomeItem.Content" xml:space="preserve">
-    <value>Home</value>
-  </data>
-  <data name="HomePageWelcomeText.Text" xml:space="preserve">
-    <value>Welcome to the homepage, this is a UWP template app</value>
+    <value>Container</value>
   </data>
   <data name="AppearanceGroup.Text" xml:space="preserve">
     <value>Appearance</value>
@@ -186,9 +183,6 @@
   <data name="DialogMessage.Text" xml:space="preserve">
     <value>Do you allow it?</value>
   </data>
-  <data name="HomePageJoinButton.Content" xml:space="preserve">
-    <value>View GitHub repository</value>
-  </data>
   <data name="Settings_SoundCard.Description" xml:space="preserve">
     <value>Control interaction sounds in the app</value>
   </data>
@@ -246,18 +240,6 @@
   <data name="TransparentCssCard.Description" xml:space="preserve">
     <value>Manage the transparent background rules injected into the web page</value>
   </data>
-  <data name="CssSelectorLabel" xml:space="preserve">
-    <value>Selector</value>
-  </data>
-  <data name="CssHostLabel" xml:space="preserve">
-    <value>Web host</value>
-  </data>
-  <data name="CssRuleLabel" xml:space="preserve">
-    <value>CSS content</value>
-  </data>
-  <data name="EditCssRuleDialogTitle" xml:space="preserve">
-    <value>Edit CSS rule</value>
-  </data>
   <data name="PerSiteCssToggle.OnContent" xml:space="preserve">
     <value>Per-site settings</value>
   </data>
@@ -305,5 +287,439 @@
   </data>
   <data name="DeleteCssRuleDialogMessage.Text" xml:space="preserve">
     <value>Delete this CSS rule?</value>
+  </data>
+  <data name="DeveloperGroup.Text" xml:space="preserve">
+    <value>Developer</value>
+  </data>
+  <data name="WebIntegrationCard.Header" xml:space="preserve">
+    <value>Web app integration</value>
+  </data>
+  <data name="WebIntegrationCard.Description" xml:space="preserve">
+    <value>How Vite or regular Web apps can request app theme and background material changes</value>
+  </data>
+  <data name="WebThemeIntegrationCard.Header" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="WebThemeIntegrationCard.Description" xml:space="preserve">
+    <value>Web pages can request the host app to use system, light, or dark theme</value>
+  </data>
+  <data name="WebThemeIntegrationScriptBox.Text" xml:space="preserve">
+    <value>const setWinUIHostTheme = (value) =&gt; {
+  if (!window.__WINUI_ON_WEB_UWP_APP__ || !window.chrome?.webview) {
+    return;
+  }
+
+  window.chrome.webview.postMessage({
+    source: 'WinUIonWeb',
+    type: 'appSettingChanged',
+    key: 'theme',
+    value
+  });
+};
+
+setWinUIHostTheme('system');
+setWinUIHostTheme('light');
+setWinUIHostTheme('dark');</value>
+  </data>
+  <data name="WebMaterialIntegrationCard.Header" xml:space="preserve">
+    <value>Material</value>
+  </data>
+  <data name="WebMaterialIntegrationCard.Description" xml:space="preserve">
+    <value>Web pages can request the host app background material; this only applies inside the UWP WebView host</value>
+  </data>
+  <data name="WebMaterialIntegrationScriptBox.Text" xml:space="preserve">
+    <value>const setWinUIHostMaterial = (value) =&gt; {
+  if (!window.__WINUI_ON_WEB_UWP_APP__ || !window.chrome?.webview) {
+    return;
+  }
+
+  window.chrome.webview.postMessage({
+    source: 'WinUIonWeb',
+    type: 'appSettingChanged',
+    key: 'material',
+    value
+  });
+};
+
+setWinUIHostMaterial('mica');
+setWinUIHostMaterial('acrylic');</value>
+  </data>
+  <data name="PinContainerText.Text" xml:space="preserve">
+    <value>Pin current site to Start</value>
+  </data>
+  <data name="PinUnavailableInfoButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="PinUnavailableTeachingTip.Title" xml:space="preserve">
+    <value>This action is currently unavailable</value>
+  </data>
+  <data name="PinUnavailableTeachingTip.Subtitle" xml:space="preserve">
+    <value>Please wait until the page finishes loading and try again</value>
+  </data>
+  <data name="PinUnavailableTeachingTipContent.Text" xml:space="preserve">
+    <value>Pinning before the page finishes loading can lose the app name</value>
+  </data>
+  <data name="PinUnavailableTeachingTipActionText.Text" xml:space="preserve">
+    <value>Got it</value>
+  </data>
+  <data name="RenameTileDialog.Title" xml:space="preserve">
+    <value>Rename app entry</value>
+  </data>
+  <data name="RenameTileDialog.PrimaryButtonText" xml:space="preserve">
+    <value>Rename and continue</value>
+  </data>
+  <data name="RenameTileDialog.CloseButtonText" xml:space="preserve">
+    <value>Don't add</value>
+  </data>
+  <data name="RenameTileDialogMessage.Text" xml:space="preserve">
+    <value>This name is empty or already used by a Start menu item.</value>
+  </data>
+  <data name="RenameTileDialogNameTextBox.Header" xml:space="preserve">
+    <value>App name</value>
+  </data>
+  <data name="RenameTileDialogNameErrorText.Text" xml:space="preserve">
+    <value>Please change the name first</value>
+  </data>
+  <data name="DownloadsEntryText.Text" xml:space="preserve">
+    <value>Downloads</value>
+  </data>
+  <data name="DownloadTitleBarButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Downloads</value>
+  </data>
+  <data name="DownloadTitleBarProgressToolTipFormat" xml:space="preserve">
+    <value>Downloads - {0}%</value>
+  </data>
+  <data name="DownloadsPanelTitle.Text" xml:space="preserve">
+    <value>Downloads</value>
+  </data>
+  <data name="DownloadsEmptyText.Text" xml:space="preserve">
+    <value>No downloads yet</value>
+  </data>
+  <data name="OpenDownloadsFolderButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Open downloads folder</value>
+  </data>
+  <data name="PinDownloadsPanelButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Pin to title bar</value>
+  </data>
+  <data name="OpenDownloadItemButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Open file</value>
+  </data>
+  <data name="CancelDownloadItemButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Cancel download</value>
+  </data>
+  <data name="PinDownloadsToTitleBarMenuItem.Text" xml:space="preserve">
+    <value>Pin to title bar</value>
+  </data>
+  <data name="UnpinDownloadsFromTitleBarMenuItem.Text" xml:space="preserve">
+    <value>Unpin from title bar</value>
+  </data>
+  <data name="DownloadItemUnknownFile" xml:space="preserve">
+    <value>Downloaded file</value>
+  </data>
+  <data name="DownloadStatusInProgressFormat" xml:space="preserve">
+    <value>Downloaded {0} · {1}</value>
+  </data>
+  <data name="DownloadStatusInProgressWithTotalFormat" xml:space="preserve">
+    <value>Downloaded {0} of {1} · {2}</value>
+  </data>
+  <data name="DownloadStatusCompleted" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="DownloadStatusInterrupted" xml:space="preserve">
+    <value>Interrupted</value>
+  </data>
+  <data name="DownloadUnitBytes" xml:space="preserve">
+    <value>B</value>
+  </data>
+  <data name="DownloadUnitKilobytes" xml:space="preserve">
+    <value>KB</value>
+  </data>
+  <data name="DownloadUnitMegabytes" xml:space="preserve">
+    <value>MB</value>
+  </data>
+  <data name="DownloadUnitGigabytes" xml:space="preserve">
+    <value>GB</value>
+  </data>
+  <data name="WebViewLoadingText.Text" xml:space="preserve">
+    <value>Loading</value>
+  </data>
+  <data name="NavigationErrorTitle.Text" xml:space="preserve">
+    <value>Can't open this page</value>
+  </data>
+  <data name="NavigationErrorMessageFormat" xml:space="preserve">
+    <value>Page load failed: {0}</value>
+  </data>
+  <data name="RetryNavigationButton.Content" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="CopyNavigationUrlButton.Content" xml:space="preserve">
+    <value>Copy link</value>
+  </data>
+  <data name="OpenNavigationExternalButton.Content" xml:space="preserve">
+    <value>Open in browser</value>
+  </data>
+  <data name="NavigationError_Unknown" xml:space="preserve">
+    <value>Unknown error</value>
+  </data>
+  <data name="NavigationError_CertificateCommonNameIsIncorrect" xml:space="preserve">
+    <value>Certificate name mismatch</value>
+  </data>
+  <data name="NavigationError_CertificateExpired" xml:space="preserve">
+    <value>Certificate expired</value>
+  </data>
+  <data name="NavigationError_ClientCertificateContainsErrors" xml:space="preserve">
+    <value>Client certificate contains errors</value>
+  </data>
+  <data name="NavigationError_CertificateRevoked" xml:space="preserve">
+    <value>Certificate revoked</value>
+  </data>
+  <data name="NavigationError_CertificateIsInvalid" xml:space="preserve">
+    <value>Certificate is invalid</value>
+  </data>
+  <data name="NavigationError_ServerUnreachable" xml:space="preserve">
+    <value>Server unreachable</value>
+  </data>
+  <data name="NavigationError_Timeout" xml:space="preserve">
+    <value>Connection timed out</value>
+  </data>
+  <data name="NavigationError_ErrorHttpInvalidServerResponse" xml:space="preserve">
+    <value>Invalid server response</value>
+  </data>
+  <data name="NavigationError_ConnectionAborted" xml:space="preserve">
+    <value>Connection aborted</value>
+  </data>
+  <data name="NavigationError_ConnectionReset" xml:space="preserve">
+    <value>Connection reset</value>
+  </data>
+  <data name="NavigationError_Disconnected" xml:space="preserve">
+    <value>Network disconnected</value>
+  </data>
+  <data name="NavigationError_CannotConnect" xml:space="preserve">
+    <value>Cannot connect</value>
+  </data>
+  <data name="NavigationError_HostNameNotResolved" xml:space="preserve">
+    <value>Host name not resolved</value>
+  </data>
+  <data name="NavigationError_OperationCanceled" xml:space="preserve">
+    <value>Operation canceled</value>
+  </data>
+  <data name="NavigationError_RedirectFailed" xml:space="preserve">
+    <value>Redirect failed</value>
+  </data>
+  <data name="NavigationError_UnexpectedError" xml:space="preserve">
+    <value>Unexpected error</value>
+  </data>
+  <data name="PermissionRequestDialog.Title" xml:space="preserve">
+    <value>Site permission request</value>
+  </data>
+  <data name="PermissionRequestDialog.PrimaryButtonText" xml:space="preserve">
+    <value>Allow</value>
+  </data>
+  <data name="PermissionRequestDialog.SecondaryButtonText" xml:space="preserve">
+    <value>Deny</value>
+  </data>
+  <data name="PermissionRequestMessageFormat" xml:space="preserve">
+    <value>This site wants to use “{0}”.</value>
+  </data>
+  <data name="PermissionRequestOriginFormat" xml:space="preserve">
+    <value>Origin: {0}</value>
+  </data>
+  <data name="PermissionRequestUserInitiated" xml:space="preserve">
+    <value>This request was triggered by a user action</value>
+  </data>
+  <data name="PermissionRequestNotUserInitiated" xml:space="preserve">
+    <value>This request was not triggered by a user action</value>
+  </data>
+  <data name="RememberPermissionDecisionCheckBox.Content" xml:space="preserve">
+    <value>Remember this choice</value>
+  </data>
+  <data name="PermissionKind_UnknownPermission" xml:space="preserve">
+    <value>Unknown permission</value>
+  </data>
+  <data name="PermissionKind_Microphone" xml:space="preserve">
+    <value>microphone</value>
+  </data>
+  <data name="PermissionKind_Camera" xml:space="preserve">
+    <value>camera</value>
+  </data>
+  <data name="PermissionKind_Geolocation" xml:space="preserve">
+    <value>location</value>
+  </data>
+  <data name="PermissionKind_Notifications" xml:space="preserve">
+    <value>notifications</value>
+  </data>
+  <data name="PermissionKind_OtherSensors" xml:space="preserve">
+    <value>sensors</value>
+  </data>
+  <data name="PermissionKind_ClipboardRead" xml:space="preserve">
+    <value>clipboard read</value>
+  </data>
+  <data name="PermissionKind_MultipleAutomaticDownloads" xml:space="preserve">
+    <value>multiple automatic downloads</value>
+  </data>
+  <data name="PermissionKind_FileReadWrite" xml:space="preserve">
+    <value>file read and write</value>
+  </data>
+  <data name="PermissionKind_Autoplay" xml:space="preserve">
+    <value>autoplay</value>
+  </data>
+  <data name="PermissionKind_LocalFonts" xml:space="preserve">
+    <value>local fonts</value>
+  </data>
+  <data name="PermissionKind_MidiSystemExclusiveMessages" xml:space="preserve">
+    <value>MIDI system exclusive messages</value>
+  </data>
+  <data name="PermissionKind_WindowManagement" xml:space="preserve">
+    <value>window management</value>
+  </data>
+  <data name="NavigationError_ValidAuthenticationCredentialsRequired" xml:space="preserve">
+    <value>Valid authentication credentials required</value>
+  </data>
+  <data name="NavigationError_ValidProxyAuthenticationRequired" xml:space="preserve">
+    <value>Valid proxy authentication credentials required</value>
+  </data>
+  <data name="DownloadDefaultFileName" xml:space="preserve">
+    <value>download</value>
+  </data>
+  <data name="PinDownloadsPanelButtonToolTip" xml:space="preserve">
+    <value>Pin to title bar</value>
+  </data>
+  <data name="UnpinDownloadsPanelButtonToolTip" xml:space="preserve">
+    <value>Unpin from title bar</value>
+  </data>
+  <data name="ContainerManagement_Breadcrumb" xml:space="preserve">
+    <value>Containers</value>
+  </data>
+  <data name="ContainersGroup.Text" xml:space="preserve">
+    <value>Containers</value>
+  </data>
+  <data name="ContainersManagementCard.Header" xml:space="preserve">
+    <value>Container management</value>
+  </data>
+  <data name="ContainersManagementCard.Description" xml:space="preserve">
+    <value>Manage created web containers, URLs, icons, and data</value>
+  </data>
+  <data name="ContainerManagementGroup.Text" xml:space="preserve">
+    <value>Created containers</value>
+  </data>
+  <data name="ContainerOpenButton.Content" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="ContainerNameBox.Header" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="ContainerUrlBox.Header" xml:space="preserve">
+    <value>URL</value>
+  </data>
+  <data name="ContainerRefreshIconButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Refresh icon</value>
+  </data>
+  <data name="ContainerClearDataButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Clear container data</value>
+  </data>
+  <data name="ContainerUnpinButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Unpin from Start</value>
+  </data>
+  <data name="ContainerDeleteButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Delete container</value>
+  </data>
+  <data name="ContainerSaveButton.Content" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="SitePermissions_Breadcrumb" xml:space="preserve">
+    <value>Site permissions</value>
+  </data>
+  <data name="SitePermissionsEntryText.Text" xml:space="preserve">
+    <value>Site permissions</value>
+  </data>
+  <data name="SitePermissionsGroup.Text" xml:space="preserve">
+    <value>Current site permissions</value>
+  </data>
+  <data name="SitePermissionsOriginFormat" xml:space="preserve">
+    <value>Origin: {0}</value>
+  </data>
+  <data name="PermissionStateAsk.Content" xml:space="preserve">
+    <value>Ask</value>
+  </data>
+  <data name="PermissionStateAllow.Content" xml:space="preserve">
+    <value>Allow</value>
+  </data>
+  <data name="PermissionStateDeny.Content" xml:space="preserve">
+    <value>Deny</value>
+  </data>
+  <data name="OpenDownloadInlineButton.Content" xml:space="preserve">
+    <value>Open file</value>
+  </data>
+  <data name="ToggleDownloadItemButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Pause or resume</value>
+  </data>
+  <data name="OpenDownloadItemMenuItem.Text" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="ShowDownloadInFolderMenuItem.Text" xml:space="preserve">
+    <value>Show in folder</value>
+  </data>
+  <data name="PauseDownloadItemMenuItem.Text" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="ResumeDownloadItemMenuItem.Text" xml:space="preserve">
+    <value>Resume</value>
+  </data>
+  <data name="CancelDownloadItemMenuItem.Text" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="RemoveDownloadItemMenuItem.Text" xml:space="preserve">
+    <value>Remove from list</value>
+  </data>
+  <data name="DownloadStatusPaused" xml:space="preserve">
+    <value>Paused</value>
+  </data>
+  <data name="DownloadSpeedFormat" xml:space="preserve">
+    <value>{0}/s</value>
+  </data>
+  <data name="DownloadStatusDeleted" xml:space="preserve">
+    <value>File deleted</value>
+  </data>
+  <data name="SettingsPageMigratedTitle.Text" xml:space="preserve">
+    <value>This page has moved</value>
+  </data>
+  <data name="SettingsPageMigratedDescription.Text" xml:space="preserve">
+    <value>Settings have moved to AboutPage. Add and maintain future settings in AboutPage.</value>
+  </data>
+  <data name="CopyDownloadLinkMenuItem.Text" xml:space="preserve">
+    <value>Copy download link</value>
+  </data>
+  <data name="ReportUnsafeDownloadMenuItem.Text" xml:space="preserve">
+    <value>Report this file as unsafe</value>
+  </data>
+  <data name="ShowDownloadInFolderButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Show in folder</value>
+  </data>
+  <data name="DeleteDownloadFileButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Delete file</value>
+  </data>
+  <data name="DownloadFolderCard.Header" xml:space="preserve">
+    <value>Default download folder</value>
+  </data>
+  <data name="DownloadFolderCard.Description" xml:space="preserve">
+    <value>Set where WebView downloads are saved</value>
+  </data>
+  <data name="BrowseDownloadFolderButton.Content" xml:space="preserve">
+    <value>Browse</value>
+  </data>
+  <data name="DownloadFolderAccessDialog.Title" xml:space="preserve">
+    <value>File system access required</value>
+  </data>
+  <data name="DownloadFolderAccessDialog.PrimaryButtonText" xml:space="preserve">
+    <value>Open settings</value>
+  </data>
+  <data name="DownloadFolderAccessDialog.CloseButtonText" xml:space="preserve">
+    <value>Later</value>
+  </data>
+  <data name="DownloadFolderAccessDialogMessage.Text" xml:space="preserve">
+    <value>Downloads need access to the default save folder. Allow this app to access the file system in Windows Settings, then try again. If it is already enabled, restart the app or choose the folder again from the download path setting on AboutPage.</value>
+  </data>
+  <data name="DeleteDownloadFileMenuItem.Text" xml:space="preserve">
+    <value>Delete file</value>
   </data>
 </root>
