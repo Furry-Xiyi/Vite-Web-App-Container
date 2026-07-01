@@ -51,7 +51,11 @@ namespace WinUIonWebUWP
                 rootFrame = new Frame();
                 Window.Current.Content = rootFrame;
 
-                AppThemeManager.LoadSettings();
+                var themeContainerId = !string.IsNullOrWhiteSpace(launchedContainerId)
+                    && SettingsManager.Instance.HasContainer(launchedContainerId)
+                        ? launchedContainerId
+                        : SettingsManager.Instance.PrimaryContainerId;
+                AppThemeManager.LoadSettings(themeContainerId);
                 AppThemeManager.ApplyTheme();
                 AppThemeManager.ApplyMaterial();
             }
@@ -63,7 +67,7 @@ namespace WinUIonWebUWP
             else
             {
                 var currentMainPage = MainPage.Current;
-                var defaultContainerId = SettingsManager.Instance.ActiveContainerId;
+                var defaultContainerId = SettingsManager.Instance.PrimaryContainerId;
                 if (currentMainPage != null
                     && currentMainPage.ContainerId != defaultContainerId
                     && SettingsManager.Instance.HasContainer(defaultContainerId))
@@ -98,7 +102,7 @@ namespace WinUIonWebUWP
                 var rootFrame = new Frame();
                 Window.Current.Content = rootFrame;
 
-                AppThemeManager.LoadSettings();
+                AppThemeManager.LoadSettings(containerId);
                 AppThemeManager.ApplyTheme();
                 AppThemeManager.ApplyMaterial();
 
@@ -150,21 +154,44 @@ namespace WinUIonWebUWP
                 return ContainerViewIds.TryGetValue(containerId, out viewId);
             }
         }
+
+        internal static void RefreshDevToolsAvailabilityForOpenViews()
+        {
+            foreach (var view in CoreApplication.Views)
+            {
+                _ = view.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                {
+                    if (Window.Current.Content is Frame frame
+                        && frame.Content is MainPage mainPage)
+                    {
+                        mainPage.ApplyCurrentContainerDevToolsSetting();
+                    }
+                });
+            }
+        }
     }
 
     // ── 主题管理器 ─────────────────────────────────────────────────
     public static class AppThemeManager
     {
-        public static ElementTheme CurrentTheme = ElementTheme.Default;
-        public static BackgroundMaterial CurrentMaterial = BackgroundMaterial.Mica;
+        [ThreadStatic]
+        public static ElementTheme CurrentTheme;
+        [ThreadStatic]
+        public static BackgroundMaterial CurrentMaterial;
 
-        public static void LoadSettings()
+        public static void LoadSettings(string? containerId = null)
         {
             var s = SettingsManager.Instance;
+            var appTheme = string.IsNullOrWhiteSpace(containerId)
+                ? s.AppTheme
+                : s.GetContainerAppTheme(containerId);
+            var appMaterial = string.IsNullOrWhiteSpace(containerId)
+                ? s.AppMaterial
+                : s.GetContainerAppMaterial(containerId);
 
             try
             {
-                CurrentTheme = s.AppTheme switch
+                CurrentTheme = appTheme switch
                 {
                     "Light" => ElementTheme.Light,
                     "Dark" => ElementTheme.Dark,
@@ -175,7 +202,7 @@ namespace WinUIonWebUWP
 
             try
             {
-                CurrentMaterial = s.AppMaterial == "Acrylic"
+                CurrentMaterial = appMaterial == "Acrylic"
                     ? BackgroundMaterial.Acrylic
                     : BackgroundMaterial.Mica;
             }
@@ -255,6 +282,7 @@ namespace WinUIonWebUWP
         {
             // 此处同步更新标题栏颜色
             CustomizeTitleBar();
+            MainPage.Current?.RefreshHostedTitleBarForeground();
 
             if (CurrentMaterial == BackgroundMaterial.Acrylic)
             {
@@ -289,7 +317,7 @@ namespace WinUIonWebUWP
             return CurrentTheme == ElementTheme.Dark;
         }
 
-        public static void CustomizeTitleBar()
+        public static void CustomizeTitleBar(Color? foregroundOverride = null)
         {
             try
             {
@@ -301,14 +329,17 @@ namespace WinUIonWebUWP
                 titleBar.ButtonInactiveBackgroundColor = Colors.Transparent;
 
                 var isDark = GetIsDarkTheme();
-                var fg = isDark ? Colors.White : Colors.Black;
+                var fg = foregroundOverride ?? (isDark ? Colors.White : Colors.Black);
+                var foregroundIsLight = GetRelativeLuminance(fg) >= 0.5;
 
                 // 与 WinUI 3 模板保持一致：失焦按钮用不透明灰，效果更稳定
-                var inactiveFg = isDark
-                    ? Color.FromArgb(255, 128, 128, 128)
-                    : Color.FromArgb(255, 160, 160, 160);
+                var inactiveFg = foregroundOverride.HasValue
+                    ? Color.FromArgb(190, fg.R, fg.G, fg.B)
+                    : isDark
+                        ? Color.FromArgb(255, 128, 128, 128)
+                        : Color.FromArgb(255, 160, 160, 160);
 
-                var hoverBg = isDark
+                var hoverBg = foregroundIsLight
                     ? Color.FromArgb(20, 255, 255, 255)
                     : Color.FromArgb(20, 0, 0, 0);
 
@@ -323,6 +354,21 @@ namespace WinUIonWebUWP
             {
                 Debug.WriteLine($"CustomizeTitleBar failed: {ex.Message}");
             }
+        }
+
+        private static double GetRelativeLuminance(Color color)
+        {
+            static double Linearize(byte component)
+            {
+                var value = component / 255.0;
+                return value <= 0.03928
+                    ? value / 12.92
+                    : Math.Pow((value + 0.055) / 1.055, 2.4);
+            }
+
+            return 0.2126 * Linearize(color.R)
+                + 0.7152 * Linearize(color.G)
+                + 0.0722 * Linearize(color.B);
         }
     }
 
@@ -391,6 +437,65 @@ namespace WinUIonWebUWP
             set { _settings.IsDownloadsButtonPinned = value; SaveSettings(); }
         }
 
+        public bool IsF12DevToolsEnabled
+        {
+            get => _settings.IsF12DevToolsEnabled;
+            set { _settings.IsF12DevToolsEnabled = value; SaveSettings(); }
+        }
+
+        public string ViteDevServerHost
+        {
+            get => string.IsNullOrWhiteSpace(_settings.ViteDevServerHost) ? "localhost" : _settings.ViteDevServerHost;
+            set { _settings.ViteDevServerHost = string.IsNullOrWhiteSpace(value) ? "localhost" : value.Trim(); SaveSettings(); }
+        }
+
+        public int ViteDevServerPort
+        {
+            get => _settings.ViteDevServerPort <= 0 ? 5173 : _settings.ViteDevServerPort;
+            set { _settings.ViteDevServerPort = value <= 0 ? 5173 : value; SaveSettings(); }
+        }
+
+        public bool ViteDevServerUsePath
+        {
+            get => _settings.ViteDevServerUsePath;
+            set { _settings.ViteDevServerUsePath = value; SaveSettings(); }
+        }
+
+        public string ViteDevServerPath
+        {
+            get => _settings.ViteDevServerPath ?? "";
+            set { _settings.ViteDevServerPath = value?.Trim() ?? ""; SaveSettings(); }
+        }
+
+        public string ViteDevServerCommand
+        {
+            get => string.IsNullOrWhiteSpace(_settings.ViteDevServerCommand) ? "npm run dev" : _settings.ViteDevServerCommand;
+            set { _settings.ViteDevServerCommand = string.IsNullOrWhiteSpace(value) ? "npm run dev" : value.Trim(); SaveSettings(); }
+        }
+
+        public string ViteDevServerWorkingDirectory
+        {
+            get => _settings.ViteDevServerWorkingDirectory ?? "";
+            set { _settings.ViteDevServerWorkingDirectory = value?.Trim() ?? ""; SaveSettings(); }
+        }
+
+        public string ViteDevServerUrl
+        {
+            get
+            {
+                var url = $"http://{ViteDevServerHost}:{ViteDevServerPort}/";
+                if (!ViteDevServerUsePath)
+                {
+                    return url;
+                }
+
+                var path = NormalizeViteDevServerPath(ViteDevServerPath);
+                return string.IsNullOrWhiteSpace(path)
+                    ? url
+                    : url + path;
+            }
+        }
+
         public string DownloadFolderToken
         {
             get => _settings.DownloadFolderToken;
@@ -450,7 +555,17 @@ namespace WinUIonWebUWP
             get => string.IsNullOrWhiteSpace(CurrentContainer.HomeUrl)
                 ? new ResourceLoader().GetString("DefaultHomeUrl")
                 : CurrentContainer.HomeUrl;
-            set { CurrentContainer.HomeUrl = value; SaveSettings(); }
+            set
+            {
+                var container = CurrentContainer;
+                if (!string.Equals(container.HomeUrl, value, StringComparison.OrdinalIgnoreCase))
+                {
+                    container.HostedTitleBarHeight = 0;
+                }
+
+                container.HomeUrl = value;
+                SaveSettings();
+            }
         }
 
         public IReadOnlyList<string> HomeUrlHistory => CurrentContainer.HomeUrlHistory;
@@ -470,6 +585,7 @@ namespace WinUIonWebUWP
         }
 
         public string ActiveContainerId => CurrentContainer.Id;
+        public string PrimaryContainerId => DefaultContainerId;
 
         public bool HasContainer(string containerId)
         {
@@ -514,6 +630,31 @@ namespace WinUIonWebUWP
                 : name;
         }
 
+        public string GetContainerSiteName(string containerId)
+        {
+            var container = GetContainerOrDefault(containerId);
+            var manifestName = container.ManifestName?.Trim();
+            if (!string.IsNullOrWhiteSpace(manifestName))
+            {
+                return manifestName;
+            }
+
+            var displayName = container.DisplayName?.Trim();
+            if (!string.IsNullOrWhiteSpace(displayName))
+            {
+                return displayName;
+            }
+
+            return string.IsNullOrWhiteSpace(container.HomeUrl)
+                ? new ResourceLoader().GetString("AppDisplayName")
+                : container.HomeUrl;
+        }
+
+        public string GetContainerManifestName(string containerId)
+        {
+            return GetContainerOrDefault(containerId).ManifestName?.Trim() ?? "";
+        }
+
         public Uri GetContainerIconUri(string containerId)
         {
             var iconPath = GetContainerOrDefault(containerId).IconPath;
@@ -530,6 +671,35 @@ namespace WinUIonWebUWP
                 : homeUrl;
         }
 
+        public string GetContainerAppTheme(string containerId)
+        {
+            var theme = GetContainerOrDefault(containerId).AppTheme;
+            return theme is "Light" or "Dark" or "System"
+                ? theme
+                : AppTheme;
+        }
+
+        public string GetContainerAppMaterial(string containerId)
+        {
+            var material = GetContainerOrDefault(containerId).AppMaterial;
+            if (string.IsNullOrWhiteSpace(material))
+            {
+                material = AppMaterial;
+            }
+
+            return material == "Acrylic" ? "Acrylic" : "Mica";
+        }
+
+        public double GetContainerHostedTitleBarHeight(string containerId)
+        {
+            return NormalizeHostedTitleBarHeight(GetContainerOrDefault(containerId).HostedTitleBarHeight);
+        }
+
+        public bool IsContainerDevToolsEnabled(string containerId)
+        {
+            return GetContainerOrDefault(containerId).IsDevToolsEnabled;
+        }
+
         public IReadOnlyList<string> GetContainerHomeUrlHistory(string containerId)
         {
             return GetContainerOrDefault(containerId).HomeUrlHistory.ToList();
@@ -542,7 +712,64 @@ namespace WinUIonWebUWP
 
         public void SetContainerHomeUrl(string containerId, string homeUrl)
         {
-            GetContainerOrDefault(containerId).HomeUrl = homeUrl;
+            var container = GetContainerOrDefault(containerId);
+            if (!string.Equals(container.HomeUrl, homeUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                container.HostedTitleBarHeight = 0;
+            }
+
+            container.HomeUrl = homeUrl;
+            SaveSettings();
+        }
+
+        public void SetContainerAppTheme(string containerId, string appTheme)
+        {
+            var container = GetContainerOrDefault(containerId);
+            container.AppTheme = appTheme is "Light" or "Dark" ? appTheme : "System";
+            SaveSettings();
+        }
+
+        public void SetContainerAppMaterial(string containerId, string appMaterial)
+        {
+            var container = GetContainerOrDefault(containerId);
+            container.AppMaterial = appMaterial == "Acrylic" ? "Acrylic" : "Mica";
+            SaveSettings();
+        }
+
+        public void SetContainerDevToolsEnabled(string containerId, bool isEnabled)
+        {
+            GetContainerOrDefault(containerId).IsDevToolsEnabled = isEnabled;
+            SaveSettings();
+        }
+
+        public void SetContainerManifestName(string containerId, string? manifestName)
+        {
+            var name = manifestName?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return;
+            }
+
+            var container = GetContainerOrDefault(containerId);
+            if (string.Equals(container.ManifestName, name, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            container.ManifestName = name;
+            SaveSettings();
+        }
+
+        public void SetContainerHostedTitleBarHeight(string containerId, double titleBarHeight)
+        {
+            var container = GetContainerOrDefault(containerId);
+            var nextHeight = NormalizeHostedTitleBarHeight(titleBarHeight);
+            if (Math.Abs(container.HostedTitleBarHeight - nextHeight) < 0.5)
+            {
+                return;
+            }
+
+            container.HostedTitleBarHeight = nextHeight;
             SaveSettings();
         }
 
@@ -550,6 +777,11 @@ namespace WinUIonWebUWP
         {
             EnsureContainers();
             var container = GetContainerOrDefault(containerId);
+            if (!string.Equals(container.HomeUrl, homeUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                container.HostedTitleBarHeight = 0;
+            }
+
             container.DisplayName = SanitizeDisplayName(displayName, homeUrl);
             container.HomeUrl = homeUrl;
             container.HomeUrlHistory.RemoveAll(item => string.Equals(item, homeUrl, StringComparison.OrdinalIgnoreCase));
@@ -623,7 +855,9 @@ namespace WinUIonWebUWP
             {
                 container = new WebContainer
                 {
-                    Id = CreateContainerId()
+                    Id = CreateContainerId(),
+                    AppTheme = AppTheme,
+                    AppMaterial = AppMaterial
                 };
                 _settings.Containers.Add(container);
             }
@@ -871,6 +1105,7 @@ namespace WinUIonWebUWP
             var container = _settings.Containers.FirstOrDefault(item => item.Id == containerId)
                 ?? _settings.Containers.First(item => item.Id == DefaultContainerId);
             container.HomeUrlHistory ??= new List<string>();
+            container.HostedTitleBarHeight = NormalizeHostedTitleBarHeight(container.HostedTitleBarHeight);
             return container;
         }
 
@@ -911,9 +1146,17 @@ namespace WinUIonWebUWP
             {
                 container.Id ??= "";
                 container.DisplayName ??= "";
+                container.ManifestName ??= "";
                 container.HomeUrl ??= "";
                 container.IconPath ??= "";
                 container.HomeUrlHistory ??= new List<string>();
+                container.AppTheme = string.IsNullOrWhiteSpace(container.AppTheme)
+                    ? settings.AppTheme
+                    : container.AppTheme;
+                container.AppMaterial = string.IsNullOrWhiteSpace(container.AppMaterial)
+                    ? settings.AppMaterial
+                    : container.AppMaterial;
+                container.HostedTitleBarHeight = NormalizeHostedTitleBarHeight(container.HostedTitleBarHeight);
             }
 
             var defaultDownloadFolderPath = GetDefaultDownloadFolderPath();
@@ -938,6 +1181,16 @@ namespace WinUIonWebUWP
         private static string CreateContainerId()
         {
             return "container" + Guid.NewGuid().ToString("N");
+        }
+
+        private static double NormalizeHostedTitleBarHeight(double titleBarHeight)
+        {
+            if (double.IsNaN(titleBarHeight) || double.IsInfinity(titleBarHeight) || titleBarHeight <= 0)
+            {
+                return 0;
+            }
+
+            return Math.Max(32, Math.Min(96, Math.Ceiling(titleBarHeight)));
         }
 
         private static bool IsTileIdSafe(string value)
@@ -981,6 +1234,14 @@ namespace WinUIonWebUWP
             }
 
             return null;
+        }
+
+        private static string NormalizeViteDevServerPath(string? path)
+        {
+            var normalized = (path ?? "").Trim().Replace('\\', '/').TrimStart('/');
+            return string.IsNullOrWhiteSpace(normalized)
+                ? ""
+                : normalized.EndsWith("/", StringComparison.Ordinal) ? normalized : normalized + "/";
         }
 
         private static string GetDefaultDownloadFolderPath()
@@ -1034,6 +1295,13 @@ namespace WinUIonWebUWP
         public string PanePosition { get; set; } = "Left";
         public bool EnableSound { get; set; } = true;
         public bool IsDownloadsButtonPinned { get; set; } = false;
+        public bool IsF12DevToolsEnabled { get; set; } = false;
+        public string ViteDevServerHost { get; set; } = "localhost";
+        public int ViteDevServerPort { get; set; } = 5173;
+        public bool ViteDevServerUsePath { get; set; } = false;
+        public string ViteDevServerPath { get; set; } = "";
+        public string ViteDevServerCommand { get; set; } = "npm run dev";
+        public string ViteDevServerWorkingDirectory { get; set; } = "";
         public string DownloadFolderToken { get; set; } = "";
         public string DownloadFolderPath { get; set; } = "";
         public bool HasShownDownloadAccessPrompt { get; set; } = false;
@@ -1051,9 +1319,14 @@ namespace WinUIonWebUWP
     {
         public string Id { get; set; } = "";
         public string DisplayName { get; set; } = "";
+        public string ManifestName { get; set; } = "";
         public string HomeUrl { get; set; } = "";
         public string IconPath { get; set; } = "";
         public List<string> HomeUrlHistory { get; set; } = new List<string>();
+        public string AppTheme { get; set; } = "";
+        public string AppMaterial { get; set; } = "";
+        public bool IsDevToolsEnabled { get; set; } = false;
+        public double HostedTitleBarHeight { get; set; } = 0;
     }
 
     public sealed class SitePermissionSetting

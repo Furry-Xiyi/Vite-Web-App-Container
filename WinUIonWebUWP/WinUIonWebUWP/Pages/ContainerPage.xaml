@@ -5,6 +5,100 @@
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls">
 
     <Grid Background="Transparent">
+        <Grid x:Name="LauncherPanel"
+              Background="Transparent"
+              Visibility="Collapsed">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="1"
+                            Width="420"
+                            MaxWidth="520"
+                            HorizontalAlignment="Center"
+                            Spacing="4">
+                    <TextBlock x:Name="LauncherUrlErrorText"
+                               x:Uid="LauncherUrlErrorText"
+                               MinHeight="20"
+                               Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
+                               Opacity="0"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <AutoSuggestBox x:Name="LauncherUrlTextBox"
+                                        x:Uid="LauncherUrlTextBox"
+                                        MinHeight="36"
+                                        GotFocus="LauncherUrlTextBox_GotFocus"
+                                        TextChanged="LauncherUrlTextBox_TextChanged"
+                                        SuggestionChosen="LauncherUrlTextBox_SuggestionChosen"
+                                        QuerySubmitted="LauncherUrlTextBox_QuerySubmitted"/>
+
+                        <Button x:Name="LauncherAddButton"
+                                x:Uid="LauncherAddButton"
+                                Grid.Column="1"
+                                MinHeight="36"
+                                Margin="8,0,0,0"
+                                Style="{StaticResource AccentButtonStyle}"
+                                Click="LauncherAddButton_Click"/>
+                    </Grid>
+                </StackPanel>
+
+                <muxc:Expander x:Name="LauncherDeveloperExpander"
+                               x:Uid="LauncherDeveloperExpander"
+                               Grid.Row="2"
+                               Width="420"
+                               MaxWidth="520"
+                               Margin="0,8,0,0"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Top">
+                    <StackPanel Spacing="8">
+                        <muxc:NumberBox x:Name="LauncherVitePortNumberBox"
+                                        x:Uid="LauncherVitePortNumberBox"
+                                        Minimum="1"
+                                        Maximum="65535"
+                                        SmallChange="1"
+                                        LargeChange="100"
+                                        SpinButtonPlacementMode="Compact"
+                                        ValueChanged="LauncherVitePortNumberBox_ValueChanged"/>
+
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox x:Name="LauncherViteUsePathCheckBox"
+                                      x:Uid="LauncherViteUsePathCheckBox"
+                                      VerticalAlignment="Bottom"
+                                      Checked="LauncherViteUsePathCheckBox_Changed"
+                                      Unchecked="LauncherViteUsePathCheckBox_Changed"/>
+                            <TextBox x:Name="LauncherVitePathBox"
+                                     Grid.Column="1"
+                                     x:Uid="LauncherVitePathBox"
+                                     TextChanged="LauncherVitePathBox_TextChanged"/>
+                        </Grid>
+
+                        <TextBlock x:Name="LauncherViteUrlText"
+                                   FontFamily="Consolas"
+                                   FontSize="12"
+                                   TextWrapping="Wrap"
+                                   Opacity="0.72"/>
+
+                        <Button x:Name="LauncherViteUseUrlButton"
+                                x:Uid="LauncherViteUseUrlButton"
+                                HorizontalAlignment="Right"
+                                Click="LauncherViteUseUrlButton_Click"/>
+                    </StackPanel>
+                </muxc:Expander>
+            </Grid>
+        </Grid>
+
         <muxc:WebView2 x:Name="RootWebView"
                        HorizontalAlignment="Stretch"
                        VerticalAlignment="Stretch"/>

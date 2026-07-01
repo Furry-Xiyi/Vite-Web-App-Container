@@ -2,7 +2,11 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Web.WebView2.Core;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.ApplicationModel.Resources;
 using Windows.Storage;
 using Windows.UI.StartScreen;
@@ -31,7 +35,7 @@ namespace WinUIonWebUWP.Pages
         private void RefreshContainers()
         {
             Containers.Clear();
-            foreach (var container in SettingsManager.Instance.Containers)
+            foreach (var container in SettingsManager.Instance.Containers.Where(item => !SettingsManager.Instance.IsDefaultContainer(item.Id)))
             {
                 Containers.Add(new ContainerItemViewModel(container, MainPage.Current?.ContainerId));
             }
@@ -82,6 +86,52 @@ namespace WinUIonWebUWP.Pages
                 return;
             }
 
+            await ClearContainerProfileFolderAsync(containerId);
+        }
+
+        private async void ClearContainerCacheButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetContainerId(sender) is not string containerId)
+            {
+                return;
+            }
+
+            await ClearContainerProfileFolderAsync(containerId);
+        }
+
+        private void ReinjectContainerScriptsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetContainerId(sender) is string containerId
+                && string.Equals(MainPage.Current?.ContainerId, containerId, StringComparison.OrdinalIgnoreCase))
+            {
+                MainPage.Current?.GetContainerPageForSettings()?.ReinjectHostScripts();
+            }
+        }
+
+        private void OpenContainerDevToolsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetContainerId(sender) is string containerId
+                && string.Equals(MainPage.Current?.ContainerId, containerId, StringComparison.OrdinalIgnoreCase))
+            {
+                MainPage.Current?.GetContainerPageForSettings()?.OpenDevToolsWindow();
+            }
+        }
+
+        private void CopyContainerDiagnosticsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetContainerId(sender) is not string containerId
+                || FindItem(containerId) is not ContainerItemViewModel item)
+            {
+                return;
+            }
+
+            var dataPackage = new DataPackage();
+            dataPackage.SetText(item.CreateDiagnosticsText());
+            Clipboard.SetContent(dataPackage);
+        }
+
+        private static async Task ClearContainerProfileFolderAsync(string containerId)
+        {
             try
             {
                 var folderPath = SettingsManager.Instance.GetContainerWebViewDataFolder(containerId);
@@ -165,17 +215,25 @@ namespace WinUIonWebUWP.Pages
         public ContainerItemViewModel(WebContainer container, string? currentContainerId)
         {
             Id = container.Id;
-            DisplayName = string.IsNullOrWhiteSpace(container.DisplayName)
-                ? container.HomeUrl
-                : container.DisplayName;
+            DisplayName = SettingsManager.Instance.GetContainerSiteName(Id);
             HomeUrl = container.HomeUrl;
             EditDisplayName = DisplayName;
             EditHomeUrl = HomeUrl;
             CanDelete = !SettingsManager.Instance.IsDefaultContainer(Id);
-            OpenVisibility = string.Equals(Id, currentContainerId, StringComparison.OrdinalIgnoreCase)
-                ? Visibility.Collapsed
-                : Visibility.Visible;
+            IsCurrentContainer = string.Equals(Id, currentContainerId, StringComparison.OrdinalIgnoreCase);
+            OpenVisibility = IsCurrentContainer ? Visibility.Collapsed : Visibility.Visible;
             IconUri = SettingsManager.Instance.GetContainerIconUri(Id);
+            WebViewRuntimeVersion = GetWebViewRuntimeVersion();
+            DiagnosticCurrentUrl = IsCurrentContainer
+                ? MainPage.Current?.GetContainerPageForSettings()?.CurrentUrl ?? HomeUrl
+                : HomeUrl;
+            DiagnosticOrigin = GetOrigin(DiagnosticCurrentUrl);
+            ProfilePath = SettingsManager.Instance.GetContainerWebViewDataFolder(Id);
+
+            var manifestName = SettingsManager.Instance.GetContainerManifestName(Id);
+            ManifestSummary = string.IsNullOrWhiteSpace(manifestName)
+                ? GetResourceString("ContainerDiagnosticManifestMissing")
+                : manifestName;
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
@@ -186,7 +244,51 @@ namespace WinUIonWebUWP.Pages
         public string EditDisplayName { get; set; }
         public string EditHomeUrl { get; set; }
         public bool CanDelete { get; }
+        public bool IsCurrentContainer { get; }
         public Visibility OpenVisibility { get; }
         public Uri IconUri { get; }
+
+        public string WebViewRuntimeVersion { get; }
+        public string DiagnosticCurrentUrl { get; }
+        public string DiagnosticOrigin { get; }
+        public string ProfilePath { get; }
+        public string ManifestSummary { get; }
+
+        public string CreateDiagnosticsText()
+        {
+            var builder = new StringBuilder();
+            builder.AppendLine($"{GetResourceString("ContainerDiagnosticNameLabelText")}: {DisplayName}");
+            builder.AppendLine($"{GetResourceString("ContainerDiagnosticRuntimeLabelText")}: {WebViewRuntimeVersion}");
+            builder.AppendLine($"{GetResourceString("ContainerDiagnosticUrlLabelText")}: {DiagnosticCurrentUrl}");
+            builder.AppendLine($"{GetResourceString("ContainerDiagnosticOriginLabelText")}: {DiagnosticOrigin}");
+            builder.AppendLine($"{GetResourceString("ContainerDiagnosticProfileLabelText")}: {ProfilePath}");
+            builder.AppendLine($"{GetResourceString("ContainerDiagnosticManifestLabelText")}: {ManifestSummary}");
+            builder.AppendLine($"Vite: {SettingsManager.Instance.ViteDevServerUrl}");
+            return builder.ToString();
+        }
+
+        private static string GetOrigin(string url)
+        {
+            return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                ? uri.GetLeftPart(UriPartial.Authority)
+                : "";
+        }
+
+        private static string GetWebViewRuntimeVersion()
+        {
+            try
+            {
+                return CoreWebView2Environment.GetAvailableBrowserVersionString();
+            }
+            catch
+            {
+                return GetResourceString("ContainerDiagnosticRuntimeUnavailable");
+            }
+        }
+
+        private static string GetResourceString(string key)
+        {
+            return ResourceLoader.GetForCurrentView().GetString(key);
+        }
     }
 }

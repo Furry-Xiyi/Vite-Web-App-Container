@@ -20,6 +20,7 @@ using Windows.Storage.AccessCache;
 using Windows.Storage.FileProperties;
 using Windows.Storage.Streams;
 using Windows.System;
+using Windows.UI;
 using Windows.UI.Core;
 using Windows.UI.StartScreen;
 using Windows.UI.ViewManagement;
@@ -34,6 +35,9 @@ namespace WinUIonWebUWP
 {
     public sealed partial class MainPage : Page
     {
+        private const double DefaultTitleBarHeight = 32;
+        private const double MaxHostedTitleBarHeight = 96;
+
         [ThreadStatic]
         private static MainPage? _currentInstance;
         [ThreadStatic]
@@ -67,7 +71,14 @@ namespace WinUIonWebUWP
         private Type? _currentSettingsPageType;
         private bool _isDownloadAccessDialogOpen;
         private string _pinCandidateUrl = "";
+        private double _titleBarLeftInset;
+        private double _titleBarRightInset = 48;
+        private double _hostedTitleBarHeight = DefaultTitleBarHeight;
+        private IReadOnlyList<TitleBarInteractiveRect> _hostedTitleBarInteractiveRects = Array.Empty<TitleBarInteractiveRect>();
+        private Color? _hostedTitleBarForegroundColor;
+        private bool _hasHostedTitleBarThemeOverride;
         private string _hostedDocumentTitle = "";
+        private string _hostedManifestName = "";
         private Uri? _hostedDocumentIconUri;
         private IReadOnlyList<Uri> _hostedDocumentIconCandidates = Array.Empty<Uri>();
         private Uri? _preparedTileIconUri;
@@ -76,9 +87,11 @@ namespace WinUIonWebUWP
         private DownloadItemViewModel? _hoveredDownloadItem;
         private readonly DispatcherTimer _downloadsFileRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         private bool _isRefreshingDownloadFileAvailability;
+        private ContainerPage? _containerPage;
 
         public bool IsWindowActive { get; private set; } = true;
         public string ContainerId => _containerId;
+        private bool IsPrimaryContainer => SettingsManager.Instance.IsDefaultContainer(_containerId);
 
         public MainPage()
         {
@@ -89,20 +102,26 @@ namespace WinUIonWebUWP
             _containerId = !string.IsNullOrWhiteSpace(pendingContainerId)
                 && SettingsManager.Instance.HasContainer(pendingContainerId)
                     ? pendingContainerId
-                    : SettingsManager.Instance.ActiveContainerId;
+                    : SettingsManager.Instance.PrimaryContainerId;
             _pendingContainerId = null;
             _containerDisplayName = SettingsManager.Instance.GetContainerDisplayName(_containerId);
+            _hostedManifestName = SettingsManager.Instance.GetContainerManifestName(_containerId);
+            AppThemeManager.LoadSettings(_containerId);
+            AppThemeManager.ApplyTheme();
+            AppThemeManager.ApplyMaterial();
             TitleBarAppName.Text = _containerDisplayName;
             ImgAppIcon.Source = new BitmapImage(SettingsManager.Instance.GetContainerIconUri(_containerId));
+            LoadCachedHostedTitleBarState();
             UpdateWindowTitle();
 
             var coreTitleBar = CoreApplication.GetCurrentView().TitleBar;
             coreTitleBar.ExtendViewIntoTitleBar = true;
             Window.Current.SetTitleBar(TitleBarDragArea);
             coreTitleBar.LayoutMetricsChanged += CoreTitleBar_LayoutMetricsChanged;
+            TitleBarArea.SizeChanged += TitleBarArea_SizeChanged;
             UpdateTitleBarButtonInset(coreTitleBar);
 
-            SettingsFrame.Navigated += SettingsFrame_Navigated;
+            ContentFrame.Navigated += ContentFrame_Navigated;
 
             var navigationManager = SystemNavigationManager.GetForCurrentView();
             navigationManager.BackRequested += SystemNavigationManager_BackRequested;
@@ -137,6 +156,12 @@ namespace WinUIonWebUWP
             UpdateTitleBarButtonInset(sender);
         }
 
+        private void TitleBarArea_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            UpdateTitleBarDragAreaBounds();
+            UpdateHostedTitleBarGeometry();
+        }
+
         private void UpdateTitleBarButtonInset(CoreApplicationViewTitleBar titleBar)
         {
             const double titleBarButtonSpacing = 2;
@@ -145,11 +170,376 @@ namespace WinUIonWebUWP
                 : 0;
             var downloadButtonSpacing = downloadButtonWidth > 0 ? titleBarButtonSpacing : 0;
             var rightInset = titleBar.SystemOverlayRightInset + MoreButton.Width + downloadButtonWidth + downloadButtonSpacing;
+            var activeHeight = GetActiveTitleBarHeight();
 
             MoreButton.Margin = new Thickness(0, 0, titleBar.SystemOverlayRightInset, 0);
             DownloadTitleBarButton.Margin = new Thickness(0, 0, titleBar.SystemOverlayRightInset + MoreButton.Width + downloadButtonSpacing, 0);
-            TitleBarDragArea.Margin = new Thickness(titleBar.SystemOverlayLeftInset, 0, rightInset, 0);
             TitleBarIdentityArea.Margin = new Thickness(titleBar.SystemOverlayLeftInset + 16, 0, 16, 0);
+            TitleBarArea.Height = activeHeight;
+            TitleBarDragArea.Height = activeHeight;
+
+            _titleBarLeftInset = titleBar.SystemOverlayLeftInset;
+            _titleBarRightInset = rightInset;
+            UpdateTitleBarDragAreaBounds();
+            UpdateHostedTitleBarGeometry();
+        }
+
+        private double GetActiveTitleBarHeight() =>
+            _isHostedTitleBarVisible ? _hostedTitleBarHeight : DefaultTitleBarHeight;
+
+        private void UpdateHostedTitleBarGeometry()
+        {
+            _ = GetContainerPage()?.SetHostTitleBarGeometryAsync(
+                _titleBarLeftInset,
+                _titleBarRightInset,
+                GetActiveTitleBarHeight());
+        }
+
+        public void SetHostedTitleBarInteractiveRects(IReadOnlyList<TitleBarInteractiveRect>? rects)
+        {
+            _hostedTitleBarInteractiveRects = rects ?? Array.Empty<TitleBarInteractiveRect>();
+            UpdateTitleBarDragAreaBounds();
+        }
+
+        public void SetHostedTitleBarAppearance(string? theme, string? foreground, string? background = null)
+        {
+            if (!_isHostedTitleBarVisible || _isSettingsHostOpen)
+            {
+                return;
+            }
+
+            var nextTheme = NormalizeHostedTitleBarTheme(theme);
+            if (nextTheme.HasValue && AppThemeManager.CurrentTheme != nextTheme.Value)
+            {
+                _hasHostedTitleBarThemeOverride = true;
+                AppThemeManager.CurrentTheme = nextTheme.Value;
+                AppThemeManager.ApplyTheme();
+                AppThemeManager.ApplyMaterial();
+                GetContainerPage()?.RefreshHostTheme();
+            }
+
+            var hasForeground = TryParseCssColor(foreground, out var color);
+            var hasBackground = TryParseCssColor(background, out var backgroundColor);
+            if (!hasForeground)
+            {
+                color = GetThemeForegroundColor();
+            }
+
+            if (hasBackground && GetContrastRatio(color, backgroundColor) < 4.5)
+            {
+                color = GetContrastingForegroundColor(backgroundColor);
+            }
+            else if (!hasBackground && nextTheme.HasValue && !IsReadableForTheme(color, nextTheme.Value))
+            {
+                color = nextTheme.Value == ElementTheme.Dark ? Colors.White : Colors.Black;
+            }
+
+            _hostedTitleBarForegroundColor = color;
+            ApplyHostedTitleBarForeground();
+        }
+
+        private static ElementTheme? NormalizeHostedTitleBarTheme(string? theme)
+        {
+            return theme?.Trim().ToLowerInvariant() switch
+            {
+                "light" => ElementTheme.Light,
+                "dark" => ElementTheme.Dark,
+                _ => null
+            };
+        }
+
+        private static bool TryParseCssColor(string? value, out Color color)
+        {
+            color = default;
+            var text = value?.Trim();
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                return false;
+            }
+
+            if (text.StartsWith("#", StringComparison.Ordinal))
+            {
+                text = text.Substring(1);
+            }
+
+            if (text.Length != 6
+                || !int.TryParse(text.Substring(0, 2), System.Globalization.NumberStyles.HexNumber, null, out var r)
+                || !int.TryParse(text.Substring(2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g)
+                || !int.TryParse(text.Substring(4, 2), System.Globalization.NumberStyles.HexNumber, null, out var b))
+            {
+                return false;
+            }
+
+            color = Color.FromArgb(255, (byte)r, (byte)g, (byte)b);
+            return true;
+        }
+
+        private static Color GetThemeForegroundColor() =>
+            AppThemeManager.GetIsDarkTheme() ? Colors.White : Colors.Black;
+
+        private static bool IsReadableForTheme(Color color, ElementTheme theme)
+        {
+            var luminance = GetRelativeLuminance(color);
+            return theme == ElementTheme.Dark
+                ? luminance >= 0.5
+                : luminance < 0.5;
+        }
+
+        private static Color GetContrastingForegroundColor(Color background)
+        {
+            return GetContrastRatio(Colors.White, background) >= GetContrastRatio(Colors.Black, background)
+                ? Colors.White
+                : Colors.Black;
+        }
+
+        private static double GetContrastRatio(Color foreground, Color background)
+        {
+            var foregroundLuminance = GetRelativeLuminance(foreground);
+            var backgroundLuminance = GetRelativeLuminance(background);
+            var light = Math.Max(foregroundLuminance, backgroundLuminance);
+            var dark = Math.Min(foregroundLuminance, backgroundLuminance);
+            return (light + 0.05) / (dark + 0.05);
+        }
+
+        private static double GetRelativeLuminance(Color color)
+        {
+            static double Linearize(byte component)
+            {
+                var value = component / 255.0;
+                return value <= 0.03928
+                    ? value / 12.92
+                    : Math.Pow((value + 0.055) / 1.055, 2.4);
+            }
+
+            return 0.2126 * Linearize(color.R)
+                + 0.7152 * Linearize(color.G)
+                + 0.0722 * Linearize(color.B);
+        }
+
+        private void ApplyHostedTitleBarForeground()
+        {
+            var color = _isHostedTitleBarVisible && _hostedTitleBarForegroundColor.HasValue
+                ? _hostedTitleBarForegroundColor
+                : null;
+
+            AppThemeManager.CustomizeTitleBar(color);
+
+            if (color.HasValue)
+            {
+                var brush = new SolidColorBrush(color.Value);
+                MoreButton.Foreground = brush;
+                DownloadTitleBarButton.Foreground = brush;
+                DownloadTitleBarProgressRing.Foreground = brush;
+            }
+            else
+            {
+                MoreButton.ClearValue(Control.ForegroundProperty);
+                DownloadTitleBarButton.ClearValue(Control.ForegroundProperty);
+                DownloadTitleBarProgressRing.ClearValue(Control.ForegroundProperty);
+            }
+        }
+
+        public void RefreshHostedTitleBarForeground()
+        {
+            ApplyHostedTitleBarForeground();
+        }
+
+        private void ResetHostedTitleBarAppearance()
+        {
+            _hostedTitleBarForegroundColor = null;
+
+            if (_hasHostedTitleBarThemeOverride)
+            {
+                _hasHostedTitleBarThemeOverride = false;
+                AppThemeManager.LoadSettings(_containerId);
+                AppThemeManager.ApplyTheme();
+                AppThemeManager.ApplyMaterial();
+                GetContainerPage()?.RefreshHostTheme();
+            }
+
+            ApplyHostedTitleBarForeground();
+        }
+
+        private void UpdateTitleBarDragAreaBounds()
+        {
+            const double exclusionPadding = 4;
+            const double minDragSegmentWidth = 8;
+            const double minDragSegmentHeight = 8;
+            var windowWidth = TitleBarArea.ActualWidth > 0
+                ? TitleBarArea.ActualWidth
+                : Window.Current.Bounds.Width;
+            var activeHeight = GetActiveTitleBarHeight();
+            var titleBarButtonHeight = Math.Min(DefaultTitleBarHeight, activeHeight);
+            var dragRects = new List<TitleBarRect>
+            {
+                new TitleBarRect(0, 0, Math.Max(0, windowWidth), activeHeight)
+            };
+
+            if (_titleBarLeftInset > 0 && titleBarButtonHeight > 0)
+            {
+                dragRects = SubtractTitleBarRect(
+                    dragRects,
+                    new TitleBarRect(0, 0, Math.Max(0, _titleBarLeftInset), titleBarButtonHeight),
+                    minDragSegmentWidth,
+                    minDragSegmentHeight);
+            }
+
+            if (_titleBarRightInset > 0 && titleBarButtonHeight > 0)
+            {
+                var rightInset = Math.Max(0, _titleBarRightInset);
+                dragRects = SubtractTitleBarRect(
+                    dragRects,
+                    new TitleBarRect(Math.Max(0, windowWidth - rightInset), 0, rightInset, titleBarButtonHeight),
+                    minDragSegmentWidth,
+                    minDragSegmentHeight);
+            }
+
+            var interactiveRects = _isHostedTitleBarVisible
+                ? _hostedTitleBarInteractiveRects
+                : Array.Empty<TitleBarInteractiveRect>();
+
+            foreach (var rect in interactiveRects)
+            {
+                if (rect.Width <= 0
+                    || rect.Height <= 0
+                    || rect.Bottom <= 0
+                    || rect.Top >= activeHeight)
+                {
+                    continue;
+                }
+
+                dragRects = SubtractTitleBarRect(
+                    dragRects,
+                    TitleBarRect.FromEdges(
+                        Math.Max(0, rect.Left - exclusionPadding),
+                        Math.Max(0, rect.Top - exclusionPadding),
+                        Math.Min(windowWidth, rect.Right + exclusionPadding),
+                        Math.Min(activeHeight, rect.Bottom + exclusionPadding)),
+                    minDragSegmentWidth,
+                    minDragSegmentHeight);
+            }
+
+            TitleBarDragArea.Margin = new Thickness(0);
+            TitleBarDragArea.Width = windowWidth;
+            TitleBarDragArea.Height = activeHeight;
+            TitleBarDragArea.Children.Clear();
+
+            foreach (var rect in dragRects)
+            {
+                AddTitleBarDragSegment(rect.Left, rect.Top, rect.Width, rect.Height);
+            }
+        }
+
+        private void AddTitleBarDragSegment(double left, double top, double width, double height)
+        {
+            if (width <= 0 || height <= 0)
+            {
+                return;
+            }
+
+            var segment = new Border
+            {
+                Width = width,
+                Height = height,
+                Background = new SolidColorBrush(Windows.UI.Colors.Transparent)
+            };
+            Canvas.SetLeft(segment, left);
+            Canvas.SetTop(segment, top);
+            TitleBarDragArea.Children.Add(segment);
+        }
+
+        private static List<TitleBarRect> SubtractTitleBarRect(
+            IReadOnlyList<TitleBarRect> sourceRects,
+            TitleBarRect exclusion,
+            double minWidth,
+            double minHeight)
+        {
+            if (exclusion.Width <= 0 || exclusion.Height <= 0)
+            {
+                return sourceRects.ToList();
+            }
+
+            var result = new List<TitleBarRect>();
+            foreach (var rect in sourceRects)
+            {
+                if (!rect.Intersects(exclusion))
+                {
+                    result.Add(rect);
+                    continue;
+                }
+
+                var overlap = rect.Intersection(exclusion);
+                AddTitleBarRectIfUseful(result, TitleBarRect.FromEdges(rect.Left, rect.Top, rect.Right, overlap.Top), minWidth, minHeight);
+                AddTitleBarRectIfUseful(result, TitleBarRect.FromEdges(rect.Left, overlap.Bottom, rect.Right, rect.Bottom), minWidth, minHeight);
+                AddTitleBarRectIfUseful(result, TitleBarRect.FromEdges(rect.Left, overlap.Top, overlap.Left, overlap.Bottom), minWidth, minHeight);
+                AddTitleBarRectIfUseful(result, TitleBarRect.FromEdges(overlap.Right, overlap.Top, rect.Right, overlap.Bottom), minWidth, minHeight);
+            }
+
+            return result;
+        }
+
+        private static void AddTitleBarRectIfUseful(
+            ICollection<TitleBarRect> rects,
+            TitleBarRect rect,
+            double minWidth,
+            double minHeight)
+        {
+            if (rect.Width >= minWidth && rect.Height >= minHeight)
+            {
+                rects.Add(rect);
+            }
+        }
+
+        public readonly struct TitleBarInteractiveRect
+        {
+            public TitleBarInteractiveRect(double left, double top, double width, double height)
+            {
+                Left = left;
+                Top = top;
+                Width = width;
+                Height = height;
+            }
+
+            public double Left { get; }
+            public double Top { get; }
+            public double Width { get; }
+            public double Height { get; }
+            public double Right => Left + Width;
+            public double Bottom => Top + Height;
+        }
+
+        private readonly struct TitleBarRect
+        {
+            public TitleBarRect(double left, double top, double width, double height)
+            {
+                Left = left;
+                Top = top;
+                Width = width;
+                Height = height;
+            }
+
+            public double Left { get; }
+            public double Top { get; }
+            public double Width { get; }
+            public double Height { get; }
+            public double Right => Left + Width;
+            public double Bottom => Top + Height;
+
+            public static TitleBarRect FromEdges(double left, double top, double right, double bottom) =>
+                new TitleBarRect(left, top, Math.Max(0, right - left), Math.Max(0, bottom - top));
+
+            public bool Intersects(TitleBarRect other) =>
+                Left < other.Right
+                && Right > other.Left
+                && Top < other.Bottom
+                && Bottom > other.Top;
+
+            public TitleBarRect Intersection(TitleBarRect other) =>
+                FromEdges(
+                    Math.Max(Left, other.Left),
+                    Math.Max(Top, other.Top),
+                    Math.Min(Right, other.Right),
+                    Math.Min(Bottom, other.Bottom));
         }
 
         private void MainPage_CoreWindowActivated(CoreWindow sender, WindowActivatedEventArgs args)
@@ -189,6 +579,85 @@ namespace WinUIonWebUWP
             return await Launcher.LaunchUriAsync(uri);
         }
 
+        public static bool TryNormalizeEnteredUrl(string? value, out string url)
+        {
+            url = "";
+            var input = value?.Trim();
+            if (string.IsNullOrWhiteSpace(input) || input.Any(char.IsWhiteSpace))
+            {
+                return false;
+            }
+
+            if (Uri.TryCreate(input, UriKind.Absolute, out var absoluteUri))
+            {
+                return TryAcceptHttpUrl(absoluteUri, out url);
+            }
+
+            if (input.Contains("://"))
+            {
+                return false;
+            }
+
+            return Uri.TryCreate($"http://{input}", UriKind.Absolute, out var prefixedUri)
+                && TryAcceptHttpUrl(prefixedUri, out url);
+        }
+
+        public async Task OpenUrlInNewContainerAsync(string url, string? displayName = null, string iconPath = "")
+        {
+            if (!IsSupportedUrl(url))
+            {
+                return;
+            }
+
+            var resolvedDisplayName = string.IsNullOrWhiteSpace(displayName)
+                ? CreateDisplayNameFromUrl(url)
+                : displayName.Trim();
+            var container = SettingsManager.Instance.CreateOrUpdateContainer(resolvedDisplayName, url, iconPath, activate: false);
+            SettingsManager.Instance.AddContainerHomeUrlHistory(container.Id, url);
+            await App.LaunchContainerInNewViewAsync(container.Id);
+        }
+
+        private static bool TryAcceptHttpUrl(Uri uri, out string url)
+        {
+            url = "";
+            if ((uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+                || !IsValidUserHost(uri.Host))
+            {
+                return false;
+            }
+
+            url = uri.AbsoluteUri;
+            return true;
+        }
+
+        private static bool IsValidUserHost(string host)
+        {
+            if (string.IsNullOrWhiteSpace(host)
+                || !host.Contains(".")
+                || host.StartsWith(".")
+                || host.EndsWith("."))
+            {
+                return false;
+            }
+
+            return host.Split('.').All(part => !string.IsNullOrWhiteSpace(part));
+        }
+
+        private static string CreateDisplayNameFromUrl(string url)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                || string.IsNullOrWhiteSpace(uri.Host))
+            {
+                return url;
+            }
+
+            var host = uri.Host.StartsWith("www.", StringComparison.OrdinalIgnoreCase)
+                ? uri.Host.Substring(4)
+                : uri.Host;
+            var firstLabel = host.Split('.').FirstOrDefault();
+            return string.IsNullOrWhiteSpace(firstLabel) ? host : firstLabel;
+        }
+
         private void MainPage_Loaded(object sender, RoutedEventArgs e)
         {
             ApplySettings();
@@ -216,7 +685,8 @@ namespace WinUIonWebUWP
             var features = new List<string>
             {
                 "msEdgeFluentOverlayScrollbar",
-                "msVisualRejuvMica"
+                "msVisualRejuvMica",
+                "msWebView2EnableDraggableRegions"
             };
 
             if (forceDark)
@@ -227,20 +697,32 @@ namespace WinUIonWebUWP
             return $"--enable-features={string.Join(",", features)}";
         }
 
-        private ContainerPage? GetContainerPage() => ContentFrame.Content as ContainerPage;
+        private ContainerPage? GetContainerPage() =>
+            ContentFrame.Content as ContainerPage ?? _containerPage;
 
         public ContainerPage? GetContainerPageForSettings() => GetContainerPage();
 
         public string ContainerHomeUrl => SettingsManager.Instance.GetContainerHomeUrl(_containerId);
         public string ContainerWebViewDataFolder => SettingsManager.Instance.GetContainerWebViewDataFolder(_containerId);
 
+        public void ApplyCurrentContainerDevToolsSetting()
+        {
+            GetContainerPage()?.RefreshDevToolsAvailability();
+        }
+
         public void ActivateCurrentContainer()
         {
             _containerId = SettingsManager.Instance.ActiveContainerId;
             RefreshContainerIdentity();
+            AppThemeManager.LoadSettings(_containerId);
+            AppThemeManager.ApplyTheme();
+            AppThemeManager.ApplyMaterial();
             _hostedDocumentTitle = "";
+            _hostedManifestName = SettingsManager.Instance.GetContainerManifestName(_containerId);
             _hostedDocumentIconUri = null;
             _hostedDocumentIconCandidates = Array.Empty<Uri>();
+            LoadCachedHostedTitleBarState();
+            UpdateTitleBarButtonInset(CoreApplication.GetCurrentView().TitleBar);
             ContentFrame.Navigate(typeof(Pages.ContainerPage), this);
             ApplyHostedDocumentInfo();
         }
@@ -248,27 +730,101 @@ namespace WinUIonWebUWP
         public void RefreshContainerIdentity()
         {
             _containerDisplayName = SettingsManager.Instance.GetContainerDisplayName(_containerId);
+            _hostedManifestName = SettingsManager.Instance.GetContainerManifestName(_containerId);
             TitleBarAppName.Text = _containerDisplayName;
             ImgAppIcon.Source = new BitmapImage(SettingsManager.Instance.GetContainerIconUri(_containerId));
             UpdateWindowTitle();
         }
 
-        public void SetHostedTitleBarVisible(bool isVisible)
+        private void LoadCachedHostedTitleBarState()
         {
+            _hostedTitleBarInteractiveRects = Array.Empty<TitleBarInteractiveRect>();
+            _hostedTitleBarForegroundColor = null;
+            _hasHostedTitleBarThemeOverride = false;
+            var cachedHeight = SettingsManager.Instance.GetContainerHostedTitleBarHeight(_containerId);
+            if (cachedHeight > 0)
+            {
+                _hostedTitleBarHeight = CoerceHostedTitleBarHeight(cachedHeight);
+                _requestedHostedTitleBarVisible = true;
+                _isHostedTitleBarVisible = true;
+                TitleBarIdentityArea.Visibility = Visibility.Collapsed;
+                ContentFrame.Margin = new Thickness(0);
+                return;
+            }
+
+            _hostedTitleBarHeight = DefaultTitleBarHeight;
+            _requestedHostedTitleBarVisible = false;
+            _isHostedTitleBarVisible = false;
+            TitleBarIdentityArea.Visibility = Visibility.Visible;
+            ContentFrame.Margin = new Thickness(0, DefaultTitleBarHeight, 0, 0);
+        }
+
+        public void SetHostedTitleBarVisible(bool isVisible, double? titleBarHeight = null)
+        {
+            if (!isVisible && !_isHostedPageLoaded && _isHostedTitleBarVisible)
+            {
+                return;
+            }
+
             _requestedHostedTitleBarVisible = isVisible;
+            if (isVisible && titleBarHeight.HasValue)
+            {
+                _hostedTitleBarHeight = CoerceHostedTitleBarHeight(titleBarHeight.Value);
+            }
+            else if (!isVisible)
+            {
+                _hostedTitleBarHeight = DefaultTitleBarHeight;
+                ResetHostedTitleBarAppearance();
+            }
+
+            if (isVisible || _isHostedPageLoaded)
+            {
+                SettingsManager.Instance.SetContainerHostedTitleBarHeight(
+                    _containerId,
+                    isVisible ? _hostedTitleBarHeight : 0);
+            }
+
             ApplyHostedTitleBarVisibility(_isSettingsHostOpen ? false : isVisible);
+        }
+
+        public void SetHostedTitleBarHeight(double titleBarHeight)
+        {
+            var nextHeight = CoerceHostedTitleBarHeight(titleBarHeight);
+            if (Math.Abs(_hostedTitleBarHeight - nextHeight) < 0.5)
+            {
+                return;
+            }
+
+            _hostedTitleBarHeight = nextHeight;
+            if (_isHostedTitleBarVisible)
+            {
+                UpdateTitleBarButtonInset(CoreApplication.GetCurrentView().TitleBar);
+            }
+        }
+
+        private static double CoerceHostedTitleBarHeight(double titleBarHeight)
+        {
+            if (double.IsNaN(titleBarHeight) || double.IsInfinity(titleBarHeight))
+            {
+                return DefaultTitleBarHeight;
+            }
+
+            return Math.Max(DefaultTitleBarHeight, Math.Min(MaxHostedTitleBarHeight, Math.Ceiling(titleBarHeight)));
         }
 
         private void ApplyHostedTitleBarVisibility(bool isVisible)
         {
             if (_isHostedTitleBarVisible == isVisible)
             {
+                UpdateHostedTitleBarGeometry();
                 return;
             }
 
             _isHostedTitleBarVisible = isVisible;
             TitleBarIdentityArea.Visibility = isVisible ? Visibility.Collapsed : Visibility.Visible;
             ContentFrame.Margin = isVisible ? new Thickness(0) : new Thickness(0, 32, 0, 0);
+            UpdateTitleBarButtonInset(CoreApplication.GetCurrentView().TitleBar);
+            ApplyHostedTitleBarForeground();
         }
 
         public void UpdateHostedDocumentInfo(string? title, Uri? iconUri, IReadOnlyList<Uri>? iconCandidates = null)
@@ -298,6 +854,23 @@ namespace WinUIonWebUWP
             ApplyHostedDocumentInfo();
         }
 
+        public void UpdateHostedManifestInfo(string? siteName)
+        {
+            var name = siteName?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return;
+            }
+
+            _hostedManifestName = name;
+            SettingsManager.Instance.SetContainerManifestName(_containerId, name);
+            if (!_isSettingsHostOpen
+                && ContentFrame?.CurrentSourcePageType == typeof(Pages.ContainerPage))
+            {
+                ApplyHostedDocumentInfo();
+            }
+        }
+
         private void ApplyHostedDocumentInfo()
         {
             TitleBarAppName.Text = GetHostedTitleBarText();
@@ -323,27 +896,41 @@ namespace WinUIonWebUWP
 
         private string GetHostedTitleBarText()
         {
-            if (string.IsNullOrWhiteSpace(_hostedDocumentTitle)
-                || string.Equals(_containerDisplayName, _hostedDocumentTitle, StringComparison.OrdinalIgnoreCase))
+            if (ShouldUseHostedManifestName())
             {
-                return _containerDisplayName;
+                return _hostedManifestName;
             }
 
-            return $"{_containerDisplayName} - {_hostedDocumentTitle}";
+            return _containerDisplayName;
         }
 
         private void UpdateWindowTitle()
         {
-            ApplicationView.GetForCurrentView().Title = string.IsNullOrWhiteSpace(_hostedDocumentTitle)
-                ? ""
-                : _hostedDocumentTitle;
+            ApplicationView.GetForCurrentView().Title = ShouldUseHostedManifestName()
+                ? _hostedManifestName
+                : "";
+        }
+
+        private bool ShouldUseHostedManifestName()
+        {
+            return !_isSettingsHostOpen
+                && ContentFrame?.CurrentSourcePageType == typeof(Pages.ContainerPage)
+                && !string.IsNullOrWhiteSpace(_hostedManifestName);
         }
 
         private void MoreFlyout_Opening(object sender, object e)
         {
             GetContainerPage()?.SetHostedWindowActive(true);
-            UrlAutoSuggestBox.Text = ContainerHomeUrl;
-            RefreshUrlHistoryItems();
+            var isLauncherContainer = IsPrimaryContainer;
+            var pinnedContainerId = isLauncherContainer ? null : GetPinnedContainerIdForCurrentSite();
+            UpdateMoreFlyoutHeader(pinnedContainerId);
+            if (string.IsNullOrWhiteSpace(pinnedContainerId))
+            {
+                UrlAutoSuggestBox.Text = isLauncherContainer ? "" : ContainerHomeUrl;
+                RefreshUrlHistoryItems();
+            }
+            SiteActionsTopDivider.Visibility = isLauncherContainer ? Visibility.Collapsed : Visibility.Visible;
+            SitePermissionsEntryButton.Visibility = isLauncherContainer ? Visibility.Collapsed : Visibility.Visible;
             UrlAutoSuggestBox.IsSuggestionListOpen = false;
             UrlAutoSuggestBox.IsEnabled = false;
             HideUrlError();
@@ -354,17 +941,90 @@ namespace WinUIonWebUWP
         {
             _ = Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
             {
-                UrlAutoSuggestBox.IsEnabled = true;
+                UrlAutoSuggestBox.IsEnabled = EditableUrlPanel.Visibility == Visibility.Visible;
             });
+        }
+
+        private void UpdateMoreFlyoutHeader(string? pinnedContainerId)
+        {
+            var isPinned = !string.IsNullOrWhiteSpace(pinnedContainerId);
+            PinnedSiteInfoPanel.Visibility = isPinned ? Visibility.Visible : Visibility.Collapsed;
+            EditableUrlPanel.Visibility = isPinned ? Visibility.Collapsed : Visibility.Visible;
+
+            if (!isPinned)
+            {
+                return;
+            }
+
+            var siteName = SettingsManager.Instance.GetContainerSiteName(pinnedContainerId!);
+            if (string.IsNullOrWhiteSpace(siteName))
+            {
+                siteName = _containerDisplayName;
+            }
+
+            PinnedSiteInfoHeaderText.Text = GetResourceOrFallback("PinnedSiteInfoHeaderText");
+            PinnedSiteInfoNameText.Text = siteName;
+            PinnedSiteInfoPublisherText.Text = string.Format(
+                GetResourceOrFallback("PinnedSiteInfoPublisherFormat"),
+                GetCurrentSitePublisher());
+            PinnedSiteInfoIcon.Source = new BitmapImage(SettingsManager.Instance.GetContainerIconUri(pinnedContainerId!));
+        }
+
+        private string GetCurrentSitePublisher()
+        {
+            var url = GetCurrentSiteUrl();
+            if (Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                && !string.IsNullOrWhiteSpace(uri.Host))
+            {
+                return uri.Host;
+            }
+
+            return "";
+        }
+
+        private string GetCurrentSiteUrl() => GetContainerPage()?.CurrentUrl ?? ContainerHomeUrl;
+
+        private string? GetPinnedContainerIdForCurrentSite()
+        {
+            if (IsPrimaryContainer)
+            {
+                return null;
+            }
+
+            var url = !string.IsNullOrWhiteSpace(_pinCandidateUrl)
+                ? _pinCandidateUrl
+                : GetCurrentSiteUrl();
+            if (IsSupportedUrl(url))
+            {
+                var existingContainerId = SettingsManager.Instance.GetContainerIdForHomeUrl(url);
+                if (!string.IsNullOrWhiteSpace(existingContainerId)
+                    && SecondaryTile.Exists(existingContainerId))
+                {
+                    return existingContainerId;
+                }
+            }
+
+            return SecondaryTile.Exists(_containerId) ? _containerId : null;
         }
 
         private void UrlAutoSuggestBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
         {
-            HideUrlError();
             if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
             {
+                if (!string.IsNullOrWhiteSpace(sender.Text)
+                    && !TryNormalizeEnteredUrl(sender.Text, out _))
+                {
+                    UrlErrorText.Visibility = Visibility.Visible;
+                    sender.IsSuggestionListOpen = false;
+                    return;
+                }
+
+                HideUrlError();
                 ShowUrlHistorySuggestions();
+                return;
             }
+
+            HideUrlError();
         }
 
         private void UrlAutoSuggestBox_GotFocus(object sender, RoutedEventArgs e)
@@ -430,41 +1090,26 @@ namespace WinUIonWebUWP
         private void SettingsEntryButton_Click(object sender, RoutedEventArgs e)
         {
             MoreFlyout.Hide();
-            OpenSettingsPage(typeof(Pages.AboutPage), _loader.GetString("Settings_Breadcrumb"), CreateDefaultSettingsTransition());
+            NavigateSettingsPage(typeof(Pages.AboutPage), CreateDefaultSettingsTransition());
         }
 
         private void SitePermissionsEntryButton_Click(object sender, RoutedEventArgs e)
         {
             MoreFlyout.Hide();
-            OpenSettingsPage(typeof(Pages.SitePermissionsPage), _loader.GetString("SitePermissions_Breadcrumb"), CreateDefaultSettingsTransition());
+            NavigateSettingsPage(typeof(Pages.SitePermissionsPage), CreateDefaultSettingsTransition());
         }
 
         public void OpenContainerManagementPage()
         {
-            OpenSettingsPage(typeof(Pages.ContainerManagementPage), _loader.GetString("ContainerManagement_Breadcrumb"), CreateSettingsSlideTransition(SlideNavigationTransitionEffect.FromRight));
+            NavigateSettingsPage(
+                typeof(Pages.ContainerManagementPage),
+                CreateSettingsSlideTransition(SlideNavigationTransitionEffect.FromRight));
         }
 
-        private void OpenSettingsPage(
-            Type pageType,
-            string breadcrumb,
-            NavigationTransitionInfo? transitionInfo = null)
+        private void NavigateSettingsPage(Type pageType, NavigationTransitionInfo? transitionInfo = null)
         {
-            var wasSettingsHostOpen = _isSettingsHostOpen;
-            _isSettingsHostOpen = true;
-            ApplyHostedTitleBarVisibility(false);
-            UpdateDownloadTitleBarButton(false);
-            MoreButton.Visibility = Visibility.Collapsed;
-
-            if (!wasSettingsHostOpen)
-            {
-                ResetSettingsFrameNavigationState();
-            }
-
-            ContentFrame.Visibility = Visibility.Collapsed;
-            SettingsHost.Visibility = Visibility.Visible;
-            SettingsFrame.Navigate(pageType, null, transitionInfo ?? CreateDefaultSettingsTransition());
-            _currentSettingsPageType = pageType;
-            UpdateSettingsTitleForPage(pageType, breadcrumb);
+            if (ContentFrame.CurrentSourcePageType == pageType) return;
+            ContentFrame.Navigate(pageType, null, transitionInfo ?? CreateDefaultSettingsTransition());
         }
 
         private async void PinContainerButton_Click(object sender, RoutedEventArgs e)
@@ -563,14 +1208,30 @@ namespace WinUIonWebUWP
                 return;
             }
 
-            MoreFlyout.Hide();
+            await HideMoreFlyoutAsync();
+            UpdatePinContainerState();
+        }
+
+        private async Task HideMoreFlyoutAsync()
+        {
+            if (Dispatcher.HasThreadAccess)
+            {
+                TryHideMoreFlyout();
+                return;
+            }
+
+            await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, TryHideMoreFlyout);
+        }
+
+        private void TryHideMoreFlyout()
+        {
             try
             {
-                await App.LaunchContainerInNewViewAsync(container.Id);
+                MoreFlyout.Hide();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Tile] Launch pinned container view failed: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Flyout] Hide failed: 0x{ex.HResult:X8} {ex.Message}");
             }
         }
 
@@ -581,46 +1242,91 @@ namespace WinUIonWebUWP
 
         public void CloseSettingsHost()
         {
-            SettingsHost.Visibility = Visibility.Collapsed;
-            ResetSettingsFrameNavigationState();
-            _currentSettingsPageType = null;
-            ContentFrame.Visibility = Visibility.Visible;
-            _isSettingsHostOpen = false;
-            HideSettingsTitle();
-            MoreButton.Visibility = Visibility.Visible;
-            UpdateDownloadTitleBarButton(false);
-            ApplyHostedTitleBarVisibility(_requestedHostedTitleBarVisible);
-            GetContainerPage()?.SetHostedWindowActive(IsWindowActive);
+            NavigateSettingsBack();
         }
 
         private void SystemNavigationManager_BackRequested(object sender, BackRequestedEventArgs e)
         {
-            if (_isSettingsHostOpen)
+            if (ContentFrame.CanGoBack)
             {
                 e.Handled = true;
                 NavigateSettingsBack();
             }
         }
 
-        private void SettingsFrame_Navigated(object sender, Windows.UI.Xaml.Navigation.NavigationEventArgs e)
+        private void ContentFrame_Navigated(object sender, Windows.UI.Xaml.Navigation.NavigationEventArgs e)
         {
+            if (e.Content is ContainerPage containerPage)
+            {
+                _containerPage = containerPage;
+                UpdateHostedTitleBarGeometry();
+            }
+
             _currentSettingsPageType = e.SourcePageType;
-            UpdateSettingsTitleForPage(e.SourcePageType, e.SourcePageType == typeof(Pages.ContainerManagementPage)
-                ? _loader.GetString("ContainerManagement_Breadcrumb")
-                : e.SourcePageType == typeof(Pages.SitePermissionsPage)
-                    ? _loader.GetString("SitePermissions_Breadcrumb")
-                    : _loader.GetString("Settings_Breadcrumb"));
+            UpdateNavigationState(e.SourcePageType);
         }
 
         private void NavigateSettingsBack()
         {
-            if (SettingsFrame.CanGoBack)
+            if (ContentFrame.CanGoBack)
             {
-                SettingsFrame.GoBack(CreateSettingsBackTransition());
+                ContentFrame.GoBack();
+            }
+        }
+
+        private void UpdateNavigationState(Type? pageType)
+        {
+            ContentFrame.Visibility = Visibility.Visible;
+
+            if (pageType == typeof(Pages.ContainerPage))
+            {
+                _isSettingsHostOpen = false;
+                _currentSettingsPageType = null;
+                HideSettingsTitle();
+                MoreButton.Visibility = Visibility.Visible;
+                UpdateDownloadTitleBarButton(false);
+                ApplyHostedTitleBarVisibility(_requestedHostedTitleBarVisible);
+                ApplyHostedDocumentInfo();
+                GetContainerPage()?.SetHostedWindowActive(IsWindowActive);
+                SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = ContentFrame.CanGoBack
+                    ? AppViewBackButtonVisibility.Visible
+                    : AppViewBackButtonVisibility.Collapsed;
                 return;
             }
 
-            CloseSettingsHost();
+            if (!IsSettingsPage(pageType))
+            {
+                _isSettingsHostOpen = false;
+                HideSettingsTitle();
+                SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = ContentFrame.CanGoBack
+                    ? AppViewBackButtonVisibility.Visible
+                    : AppViewBackButtonVisibility.Collapsed;
+                return;
+            }
+
+            _isSettingsHostOpen = true;
+            ApplyAppTitleBarIdentity();
+            ApplyHostedTitleBarVisibility(false);
+            ContentFrame.Margin = new Thickness(0, 96, 0, 0);
+            UpdateDownloadTitleBarButton(false);
+            MoreButton.Visibility = Visibility.Collapsed;
+            UpdateSettingsTitleForPage(pageType, GetSettingsBreadcrumb(pageType));
+        }
+
+        private static bool IsSettingsPage(Type? pageType)
+        {
+            return pageType == typeof(Pages.AboutPage)
+                || pageType == typeof(Pages.SitePermissionsPage)
+                || pageType == typeof(Pages.ContainerManagementPage);
+        }
+
+        private string GetSettingsBreadcrumb(Type? pageType)
+        {
+            return pageType == typeof(Pages.ContainerManagementPage)
+                ? _loader.GetString("ContainerManagement_Breadcrumb")
+                : pageType == typeof(Pages.SitePermissionsPage)
+                    ? _loader.GetString("SitePermissions_Breadcrumb")
+                    : _loader.GetString("Settings_Breadcrumb");
         }
 
         private void UpdateSettingsTitleForPage(Type? pageType, string breadcrumb)
@@ -636,6 +1342,7 @@ namespace WinUIonWebUWP
 
         private void ShowSettingsTitle(string? breadcrumb = null, bool includeSettingsRoot = true)
         {
+            SettingsHost.Visibility = Visibility.Visible;
             BreadcrumbItems.Clear();
             var settingsBreadcrumb = _loader.GetString("Settings_Breadcrumb");
             if (includeSettingsRoot)
@@ -654,8 +1361,13 @@ namespace WinUIonWebUWP
             BreadcrumbPanel.Visibility = BreadcrumbItems.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
             SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = AppViewBackButtonVisibility.Visible;
             UpdateTitleBarButtonInset(CoreApplication.GetCurrentView().TitleBar);
-            TitleBarAppName.Text = _containerDisplayName;
-            ImgAppIcon.Source = new BitmapImage(SettingsManager.Instance.GetContainerIconUri(_containerId));
+            ApplyAppTitleBarIdentity();
+        }
+
+        private void ApplyAppTitleBarIdentity()
+        {
+            TitleBarAppName.Text = Package.Current.DisplayName;
+            ImgAppIcon.Source = new BitmapImage(Package.Current.Logo);
             ApplicationView.GetForCurrentView().Title = "";
         }
 
@@ -680,46 +1392,36 @@ namespace WinUIonWebUWP
             return new CommonNavigationTransitionInfo();
         }
 
-        private NavigationTransitionInfo CreateSettingsBackTransition()
-        {
-            if (_currentSettingsPageType == typeof(Pages.ContainerManagementPage))
-            {
-                return CreateSettingsSlideTransition(SlideNavigationTransitionEffect.FromLeft);
-            }
-
-            return CreateDefaultSettingsTransition();
-        }
-
-        private void ResetSettingsFrameNavigationState()
-        {
-            SettingsFrame.BackStack.Clear();
-            SettingsFrame.ForwardStack.Clear();
-            SettingsFrame.Content = null;
-        }
-
         private void HideSettingsTitle()
         {
             BreadcrumbItems.Clear();
             BreadcrumbPanel.Visibility = Visibility.Collapsed;
+            SettingsHost.Visibility = Visibility.Collapsed;
             SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = AppViewBackButtonVisibility.Collapsed;
             UpdateTitleBarButtonInset(CoreApplication.GetCurrentView().TitleBar);
             ApplyHostedDocumentInfo();
         }
 
-        private void TryApplyUrl()
+        private async void TryApplyUrl()
         {
-            var url = UrlAutoSuggestBox.Text?.Trim();
-            if (!IsSupportedUrl(url))
+            if (!TryNormalizeEnteredUrl(UrlAutoSuggestBox.Text, out var url))
             {
                 UrlErrorText.Visibility = Visibility.Visible;
                 return;
             }
 
-            SettingsManager.Instance.SetContainerHomeUrl(_containerId, url);
             SettingsManager.Instance.AddContainerHomeUrlHistory(_containerId, url);
             RefreshUrlHistoryItems();
-            GetContainerPage()?.Navigate(url);
+            UrlAutoSuggestBox.Text = url;
             MoreFlyout.Hide();
+            try
+            {
+                await OpenUrlInNewContainerAsync(url);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Launcher] Open URL failed: {ex.Message}");
+            }
         }
 
         private static bool IsSupportedUrl(string? url)
@@ -734,9 +1436,18 @@ namespace WinUIonWebUWP
         private void RefreshUrlHistoryItems()
         {
             _urlHistoryItems.Clear();
+            var defaultUrl = _loader.GetString("DefaultHomeUrl");
+            if (IsSupportedUrl(defaultUrl))
+            {
+                _urlHistoryItems.Add(defaultUrl);
+            }
+
             foreach (var url in SettingsManager.Instance.GetContainerHomeUrlHistory(_containerId).Where(IsSupportedUrl))
             {
-                _urlHistoryItems.Add(url);
+                if (!_urlHistoryItems.Any(item => string.Equals(item, url, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _urlHistoryItems.Add(url);
+                }
             }
         }
 
@@ -749,6 +1460,7 @@ namespace WinUIonWebUWP
         public void SetHostedPageLoading(string? url = null)
         {
             _isHostedPageLoaded = false;
+            _hostedManifestName = SettingsManager.Instance.GetContainerManifestName(_containerId);
             _preparedTileIconUri = null;
             _preparedTileIconKey = "";
             _preparedTileIcons = TileIconSet.Empty;
@@ -771,19 +1483,30 @@ namespace WinUIonWebUWP
 
         private void UpdatePinContainerState()
         {
+            if (!Dispatcher.HasThreadAccess)
+            {
+                _ = Dispatcher.RunAsync(CoreDispatcherPriority.Normal, UpdatePinContainerStateCore);
+                return;
+            }
+
+            UpdatePinContainerStateCore();
+        }
+
+        private void UpdatePinContainerStateCore()
+        {
             if (PinContainerRow == null)
             {
                 return;
             }
 
-            var url = !string.IsNullOrWhiteSpace(_pinCandidateUrl)
-                ? _pinCandidateUrl
-                : GetContainerPage()?.CurrentUrl ?? ContainerHomeUrl;
-            var existingContainerId = IsSupportedUrl(url)
-                ? SettingsManager.Instance.GetContainerIdForHomeUrl(url)
-                : null;
-            var isAlreadyPinned = !string.IsNullOrWhiteSpace(existingContainerId)
-                && SecondaryTile.Exists(existingContainerId);
+            if (IsPrimaryContainer)
+            {
+                PinContainerRow.Visibility = Visibility.Collapsed;
+                PinUnavailableInfoButton.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var isAlreadyPinned = GetPinnedContainerIdForCurrentSite() != null;
 
             PinContainerRow.Visibility = isAlreadyPinned ? Visibility.Collapsed : Visibility.Visible;
             PinContainerButton.IsEnabled = _isHostedPageLoaded;
@@ -1641,15 +2364,19 @@ namespace WinUIonWebUWP
                 || HasLiveDownloadStatusIndicator();
             if (shouldShow)
             {
-                UpdateTitleBarButtonInset(CoreApplication.GetCurrentView().TitleBar);
                 if (DownloadTitleBarButton.Visibility != Visibility.Visible)
                 {
                     DownloadTitleBarButton.Visibility = Visibility.Visible;
+                    UpdateTitleBarButtonInset(CoreApplication.GetCurrentView().TitleBar);
                     AnimateDownloadTitleBarButton(1, animate, null);
                 }
-                else if (DownloadTitleBarButton.Opacity < 1)
+                else
                 {
-                    AnimateDownloadTitleBarButton(1, animate, null);
+                    UpdateTitleBarButtonInset(CoreApplication.GetCurrentView().TitleBar);
+                    if (DownloadTitleBarButton.Opacity < 1)
+                    {
+                        AnimateDownloadTitleBarButton(1, animate, null);
+                    }
                 }
                 return;
             }
@@ -1805,7 +2532,12 @@ namespace WinUIonWebUWP
 
         private string GetTileDisplayName()
         {
-            return _hostedDocumentTitle;
+            if (!string.IsNullOrWhiteSpace(_hostedManifestName))
+            {
+                return _hostedManifestName;
+            }
+
+            return SettingsManager.Instance.GetContainerManifestName(_containerId);
         }
 
         private static IReadOnlyList<string> GetPinnedTileNames(string? excludedContainerId)

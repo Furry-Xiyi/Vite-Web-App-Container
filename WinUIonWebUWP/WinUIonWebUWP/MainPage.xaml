@@ -8,13 +8,12 @@
     <Grid>
         <Grid x:Name="TitleBarArea"
               Height="32"
-              Background="Transparent"
               VerticalAlignment="Top"
               Canvas.ZIndex="1">
 
-            <Grid x:Name="TitleBarDragArea"
-                  Margin="0,0,48,0"
-                  Background="Transparent"/>
+            <Canvas x:Name="TitleBarDragArea"
+                    HorizontalAlignment="Stretch"
+                    VerticalAlignment="Top"/>
 
             <StackPanel x:Name="TitleBarIdentityArea"
                         Orientation="Horizontal"
@@ -41,7 +40,7 @@
                     Opacity="0"
                     Visibility="Collapsed"
                     HorizontalAlignment="Right"
-                    VerticalAlignment="Stretch"
+                    VerticalAlignment="Top"
                     Background="Transparent"
                     BorderThickness="0">
                 <Grid Width="24"
@@ -280,7 +279,7 @@
                                                             Tag="{x:Bind Item, Mode=OneWay}"
                                                             Click="CancelDownloadItemButton_Click">
                                                         <FontIcon Glyph="&#xE711;"
-                                                                  FontSize="10"/>
+                                                                  FontSize="12"/>
                                                     </Button>
                                                 </StackPanel>
                                                 <StackPanel Grid.Column="1"
@@ -342,7 +341,7 @@
                     Height="32"
                     Padding="0"
                     HorizontalAlignment="Right"
-                    VerticalAlignment="Stretch"
+                    VerticalAlignment="Top"
                     Background="Transparent"
                     BorderThickness="0">
                 <FontIcon FontSize="14"
@@ -353,117 +352,151 @@
                             Opened="MoreFlyout_Opened">
                         <StackPanel Width="320"
                                     Spacing="12">
-                            <AutoSuggestBox x:Name="UrlAutoSuggestBox"
-                                            x:Uid="UrlAutoSuggestBox"
-                                            TabIndex="1"
-                                            GotFocus="UrlAutoSuggestBox_GotFocus"
-                                            Tapped="UrlAutoSuggestBox_Tapped"
-                                            TextChanged="UrlAutoSuggestBox_TextChanged"
-                                            SuggestionChosen="UrlAutoSuggestBox_SuggestionChosen"
-                                            QuerySubmitted="UrlAutoSuggestBox_QuerySubmitted">
-                                <AutoSuggestBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <Grid Height="40"
-                                              MinWidth="280">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
+                            <StackPanel x:Name="PinnedSiteInfoPanel"
+                                        Spacing="8"
+                                        Visibility="Collapsed">
+                                <TextBlock x:Name="PinnedSiteInfoHeaderText"
+                                           FontSize="12"
+                                           FontWeight="SemiBold"
+                                           Foreground="{ThemeResource SystemControlForegroundBaseMediumHighBrush}"/>
 
-                                            <TextBlock Text="{Binding}"
-                                                       VerticalAlignment="Center"
-                                                       TextTrimming="CharacterEllipsis"/>
+                                <Grid Margin="0,2,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
 
-                                            <AppBarButton x:Uid="DeleteUrlHistoryButton"
-                                                          Grid.Column="1"
-                                                          Width="32"
-                                                          Height="32"
-                                                          MinWidth="32"
-                                                          MinHeight="32"
-                                                          Padding="0"
-                                                          Label=""
-                                                          Background="Transparent"
-                                                          HorizontalAlignment="Center"
-                                                          VerticalAlignment="Center"
-                                                          HorizontalContentAlignment="Center"
-                                                          VerticalContentAlignment="Center"
-                                                          Tag="{Binding}"
-                                                          Click="DeleteUrlHistoryButton_Click">
-                                                <AppBarButton.Template>
-                                                    <ControlTemplate TargetType="AppBarButton">
-                                                        <Grid Width="32"
+                                    <Image x:Name="PinnedSiteInfoIcon"
+                                           Width="40"
+                                           Height="40"
+                                           Margin="0,0,12,0"
+                                           VerticalAlignment="Top"
+                                           Stretch="UniformToFill"/>
+
+                                    <StackPanel Grid.Column="1"
+                                                Spacing="2"
+                                                VerticalAlignment="Center">
+                                        <TextBlock x:Name="PinnedSiteInfoNameText"
+                                                   FontSize="16"
+                                                   FontWeight="SemiBold"
+                                                   MaxLines="1"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock x:Name="PinnedSiteInfoPublisherText"
+                                                   FontSize="12"
+                                                   Foreground="{ThemeResource SystemControlForegroundBaseMediumBrush}"
+                                                   MaxLines="1"
+                                                   TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+
+                            <StackPanel x:Name="EditableUrlPanel"
+                                        Spacing="12">
+                                <TextBlock x:Name="UrlErrorText"
+                                           x:Uid="UrlErrorText"
+                                           Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
+                                           TextWrapping="Wrap"
+                                           Visibility="Collapsed"/>
+
+                                <AutoSuggestBox x:Name="UrlAutoSuggestBox"
+                                                x:Uid="UrlAutoSuggestBox"
+                                                TabIndex="1"
+                                                GotFocus="UrlAutoSuggestBox_GotFocus"
+                                                Tapped="UrlAutoSuggestBox_Tapped"
+                                                TextChanged="UrlAutoSuggestBox_TextChanged"
+                                                SuggestionChosen="UrlAutoSuggestBox_SuggestionChosen"
+                                                QuerySubmitted="UrlAutoSuggestBox_QuerySubmitted">
+                                    <AutoSuggestBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Height="40"
+                                                  MinWidth="280">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Text="{Binding}"
+                                                           VerticalAlignment="Center"
+                                                           TextTrimming="CharacterEllipsis"/>
+
+                                                <AppBarButton x:Uid="DeleteUrlHistoryButton"
+                                                              Grid.Column="1"
+                                                              Width="32"
                                                               Height="32"
-                                                              Background="Transparent">
-                                                            <VisualStateManager.VisualStateGroups>
-                                                                <VisualStateGroup x:Name="CommonStates">
-                                                                    <VisualState x:Name="Normal"/>
-                                                                    <VisualState x:Name="PointerOver">
-                                                                        <Storyboard>
-                                                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonBackground"
-                                                                                                           Storyboard.TargetProperty="Background">
-                                                                                <DiscreteObjectKeyFrame KeyTime="0"
-                                                                                                        Value="{ThemeResource SystemControlHighlightListLowBrush}"/>
-                                                                            </ObjectAnimationUsingKeyFrames>
-                                                                        </Storyboard>
-                                                                    </VisualState>
-                                                                    <VisualState x:Name="Pressed">
-                                                                        <Storyboard>
-                                                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonBackground"
-                                                                                                           Storyboard.TargetProperty="Background">
-                                                                                <DiscreteObjectKeyFrame KeyTime="0"
-                                                                                                        Value="{ThemeResource SystemControlHighlightListMediumBrush}"/>
-                                                                            </ObjectAnimationUsingKeyFrames>
-                                                                        </Storyboard>
-                                                                    </VisualState>
-                                                                    <VisualState x:Name="Disabled"/>
-                                                                </VisualStateGroup>
-                                                            </VisualStateManager.VisualStateGroups>
-                                                            <Border x:Name="ButtonBackground"
-                                                                    CornerRadius="4"
-                                                                    Background="Transparent"/>
-                                                            <ContentPresenter Content="{TemplateBinding Icon}"
-                                                                              HorizontalAlignment="Center"
-                                                                              VerticalAlignment="Center"/>
-                                                        </Grid>
-                                                    </ControlTemplate>
-                                                </AppBarButton.Template>
-                                                <AppBarButton.Icon>
-                                                    <FontIcon FontSize="10"
-                                                              Glyph="&#xE711;"/>
-                                                </AppBarButton.Icon>
-                                            </AppBarButton>
-                                        </Grid>
-                                    </DataTemplate>
-                                </AutoSuggestBox.ItemTemplate>
-                            </AutoSuggestBox>
+                                                              MinWidth="32"
+                                                              MinHeight="32"
+                                                              Padding="0"
+                                                              Label=""
+                                                              Background="Transparent"
+                                                              HorizontalAlignment="Center"
+                                                              VerticalAlignment="Center"
+                                                              HorizontalContentAlignment="Center"
+                                                              VerticalContentAlignment="Center"
+                                                              Tag="{Binding}"
+                                                              Click="DeleteUrlHistoryButton_Click">
+                                                    <AppBarButton.Template>
+                                                        <ControlTemplate TargetType="AppBarButton">
+                                                            <Grid Width="32"
+                                                                  Height="32"
+                                                                  Background="Transparent">
+                                                                <VisualStateManager.VisualStateGroups>
+                                                                    <VisualStateGroup x:Name="CommonStates">
+                                                                        <VisualState x:Name="Normal"/>
+                                                                        <VisualState x:Name="PointerOver">
+                                                                            <Storyboard>
+                                                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonBackground"
+                                                                                                               Storyboard.TargetProperty="Background">
+                                                                                    <DiscreteObjectKeyFrame KeyTime="0"
+                                                                                                            Value="{ThemeResource SystemControlHighlightListLowBrush}"/>
+                                                                                </ObjectAnimationUsingKeyFrames>
+                                                                            </Storyboard>
+                                                                        </VisualState>
+                                                                        <VisualState x:Name="Pressed">
+                                                                            <Storyboard>
+                                                                                <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonBackground"
+                                                                                                               Storyboard.TargetProperty="Background">
+                                                                                    <DiscreteObjectKeyFrame KeyTime="0"
+                                                                                                            Value="{ThemeResource SystemControlHighlightListMediumBrush}"/>
+                                                                                </ObjectAnimationUsingKeyFrames>
+                                                                            </Storyboard>
+                                                                        </VisualState>
+                                                                        <VisualState x:Name="Disabled"/>
+                                                                    </VisualStateGroup>
+                                                                </VisualStateManager.VisualStateGroups>
+                                                                <Border x:Name="ButtonBackground"
+                                                                        CornerRadius="4"
+                                                                        Background="Transparent"/>
+                                                                <ContentPresenter Content="{TemplateBinding Icon}"
+                                                                                  HorizontalAlignment="Center"
+                                                                                  VerticalAlignment="Center"/>
+                                                            </Grid>
+                                                        </ControlTemplate>
+                                                    </AppBarButton.Template>
+                                                    <AppBarButton.Icon>
+                                                        <FontIcon FontSize="10"
+                                                                  Glyph="&#xE711;"/>
+                                                    </AppBarButton.Icon>
+                                                </AppBarButton>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </AutoSuggestBox.ItemTemplate>
+                                </AutoSuggestBox>
 
-                            <TextBlock x:Name="UrlErrorText"
-                                       x:Uid="UrlErrorText"
-                                       Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
-                                       TextWrapping="Wrap"
-                                       Visibility="Collapsed"/>
-
-                            <StackPanel Orientation="Horizontal"
-                                        HorizontalAlignment="Right"
-                                        Spacing="8">
-                                <Button x:Name="RestoreUrlButton"
-                                        x:Uid="RestoreUrlButton"
-                                        Style="{ThemeResource ButtonRevealStyle}"
-                                        Click="RestoreUrlButton_Click"/>
-                                <Button x:Name="CancelUrlButton"
-                                        Style="{ThemeResource ButtonRevealStyle}"
-                                        x:Uid="CancelUrlButton"
-                                        Click="CancelUrlButton_Click"/>
-                                <Button x:Name="SaveUrlButton"
-                                        x:Uid="SaveUrlButton"
-                                        Style="{StaticResource AccentButtonStyle}"
-                                        Click="SaveUrlButton_Click"/>
+                                <StackPanel Orientation="Horizontal"
+                                            HorizontalAlignment="Right"
+                                            Spacing="8">
+                                    <Button x:Name="SaveUrlButton"
+                                            x:Uid="LauncherAddButton"
+                                            Style="{StaticResource AccentButtonStyle}"
+                                            Click="SaveUrlButton_Click"/>
+                                </StackPanel>
                             </StackPanel>
 
                             <StackPanel Margin="-15,0,-15,-15"
                                         Padding="2,2,2,2"
                                         Spacing="2">
-                                <Border Height="1"
+                                <Border x:Name="SiteActionsTopDivider"
+                                        Height="1"
                                         Margin="-12,0"
                                         Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
                                         Opacity="0.6"/>
@@ -620,10 +653,10 @@
               Visibility="Collapsed"
               Background="Transparent"
               Margin="0,32,0,0"
+              VerticalAlignment="Top"
               Canvas.ZIndex="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
             <StackPanel Grid.Row="0"
@@ -648,9 +681,6 @@
                 </muxc:BreadcrumbBar>
                 </StackPanel>
             </StackPanel>
-
-            <Frame x:Name="SettingsFrame"
-                   Grid.Row="1"/>
         </Grid>
     </Grid>
 </Page>

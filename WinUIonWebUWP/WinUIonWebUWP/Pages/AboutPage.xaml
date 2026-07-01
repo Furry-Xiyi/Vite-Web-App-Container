@@ -155,6 +155,198 @@
                                Margin="0,0,0,6"
                                FontWeight="SemiBold"/>
 
+                    <controls:SettingsExpander x:Name="F12DevToolsExpander"
+                                               x:Uid="F12DevToolsCard"
+                                               IsExpanded="False"
+                                               HorizontalAlignment="Stretch"
+                                               HorizontalContentAlignment="Stretch">
+                        <controls:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xEC7A;"/>
+                        </controls:SettingsExpander.HeaderIcon>
+                        <ToggleSwitch x:Name="F12DevToolsToggle"
+                                      VerticalAlignment="Center"
+                                      Toggled="F12DevToolsToggle_Toggled"/>
+                        <controls:SettingsExpander.ItemsHeader>
+                            <ItemsControl x:Name="DevToolsSitesItemsControl"
+                                          ItemsSource="{x:Bind DevToolsSites, Mode=OneWay}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="pages:DevToolsSiteViewModel">
+                                        <controls:SettingsCard Header="{x:Bind DisplayName, Mode=OneWay}"
+                                                               Description="{x:Bind HomeUrl, Mode=OneWay}"
+                                                               HorizontalAlignment="Stretch"
+                                                               HorizontalContentAlignment="Stretch"
+                                                               MinHeight="70"
+                                                               Padding="16,0">
+                                            <controls:SettingsCard.HeaderIcon>
+                                                <BitmapIcon UriSource="{x:Bind IconUri, Mode=OneWay}"
+                                                            ShowAsMonochrome="False"/>
+                                            </controls:SettingsCard.HeaderIcon>
+                                            <ToggleSwitch IsOn="{x:Bind IsDevToolsEnabled, Mode=OneWay}"
+                                                          IsEnabled="{x:Bind IsMasterEnabled, Mode=OneWay}"
+                                                          Tag="{x:Bind Id, Mode=OneWay}"
+                                                          VerticalAlignment="Center"
+                                                          Toggled="DevToolsSiteToggle_Toggled"/>
+                                        </controls:SettingsCard>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </controls:SettingsExpander.ItemsHeader>
+                    </controls:SettingsExpander>
+
+                    <controls:SettingsExpander x:Name="ViteDevServerExpander"
+                                               x:Uid="ViteDevServerCard"
+                                               HorizontalAlignment="Stretch"
+                                               HorizontalContentAlignment="Stretch">
+                        <controls:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xE756;"/>
+                        </controls:SettingsExpander.HeaderIcon>
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="8"
+                                    VerticalAlignment="Center">
+                            <Button x:Name="ViteStartButton"
+                                    x:Uid="ViteStartButton"
+                                    Style="{StaticResource AccentButtonStyle}"
+                                    Click="ViteStartButton_Click"/>
+                            <Button x:Name="ViteStopButton"
+                                    x:Uid="ViteStopButton"
+                                    Click="ViteStopButton_Click"/>
+                            <Button x:Name="ViteRetryButton"
+                                    x:Uid="ViteRetryButton"
+                                    Click="ViteRetryButton_Click"/>
+                        </StackPanel>
+                        <controls:SettingsExpander.ItemsHeader>
+                            <StackPanel Spacing="0">
+                                <controls:SettingsCard x:Uid="ViteServerConfigCard"
+                                                       HorizontalAlignment="Stretch"
+                                                       HorizontalContentAlignment="Stretch">
+                                    <Grid RowSpacing="8"
+                                          ColumnSpacing="8"
+                                          MinWidth="320"
+                                          MaxWidth="760">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="2*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBox x:Name="ViteHostBox"
+                                                 x:Uid="ViteHostBox"
+                                                 TextChanged="ViteDevServerTextBox_TextChanged"/>
+                                        <muxc:NumberBox x:Name="VitePortNumberBox"
+                                                        Grid.Column="1"
+                                                        x:Uid="VitePortNumberBox"
+                                                        Minimum="1"
+                                                        Maximum="65535"
+                                                        SmallChange="1"
+                                                        LargeChange="100"
+                                                        SpinButtonPlacementMode="Compact"
+                                                        ValueChanged="VitePortNumberBox_ValueChanged"/>
+
+                                        <Grid Grid.Row="1"
+                                              Grid.ColumnSpan="2"
+                                              ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <CheckBox x:Name="ViteUsePathCheckBox"
+                                                      x:Uid="ViteUsePathCheckBox"
+                                                      VerticalAlignment="Bottom"
+                                                      Checked="ViteUsePathCheckBox_Changed"
+                                                      Unchecked="ViteUsePathCheckBox_Changed"/>
+                                            <TextBox x:Name="VitePathBox"
+                                                     Grid.Column="1"
+                                                     x:Uid="VitePathBox"
+                                                     TextChanged="ViteDevServerTextBox_TextChanged"/>
+                                        </Grid>
+
+                                        <TextBox x:Name="ViteCommandBox"
+                                                 Grid.Row="2"
+                                                 Grid.ColumnSpan="2"
+                                                 x:Uid="ViteCommandBox"
+                                                 TextChanged="ViteDevServerTextBox_TextChanged"/>
+
+                                        <Grid Grid.Row="3"
+                                              Grid.ColumnSpan="2"
+                                              ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="ViteWorkingDirectoryBox"
+                                                     x:Uid="ViteWorkingDirectoryBox"
+                                                     TextChanged="ViteDevServerTextBox_TextChanged"/>
+                                            <Button x:Name="ViteBrowseFolderButton"
+                                                    Grid.Column="1"
+                                                    x:Uid="ViteBrowseFolderButton"
+                                                    MinHeight="32"
+                                                    VerticalAlignment="Bottom"
+                                                    Click="ViteBrowseFolderButton_Click"/>
+                                            <Button x:Name="ViteOpenFolderButton"
+                                                    Grid.Column="2"
+                                                    x:Uid="ViteOpenFolderButton"
+                                                    MinHeight="32"
+                                                    VerticalAlignment="Bottom"
+                                                    Click="ViteOpenFolderButton_Click"/>
+                                        </Grid>
+
+                                        <StackPanel Grid.Row="4"
+                                                    Grid.ColumnSpan="2"
+                                                    Orientation="Horizontal"
+                                                    HorizontalAlignment="Right"
+                                                    Spacing="8">
+                                            <Button x:Name="ViteUseDefaultButton"
+                                                    x:Uid="ViteUseDefaultButton"
+                                                    Click="ViteUseDefaultButton_Click"/>
+                                            <Button x:Name="ViteOpenUrlButton"
+                                                    x:Uid="ViteOpenUrlButton"
+                                                    Click="ViteOpenUrlButton_Click"/>
+                                            <Button x:Name="ViteReloadCurrentButton"
+                                                    x:Uid="ViteReloadCurrentButton"
+                                                    Click="ViteReloadCurrentButton_Click"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard x:Uid="ViteServerStatusCard"
+                                                       HorizontalAlignment="Stretch"
+                                                       HorizontalContentAlignment="Stretch">
+                                    <StackPanel Spacing="6"
+                                                MinWidth="320"
+                                                MaxWidth="760">
+                                        <TextBlock x:Name="ViteUrlText"
+                                                   FontFamily="Consolas"
+                                                   FontSize="12"
+                                                   TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="ViteStatusText"
+                                                   FontSize="12"
+                                                   TextWrapping="Wrap"/>
+                                        <TextBlock x:Name="ViteHmrHintText"
+                                                   FontSize="12"
+                                                   Opacity="0.72"
+                                                   TextWrapping="Wrap"
+                                                   Visibility="Collapsed"/>
+                                        <TextBox x:Name="ViteLogBox"
+                                                 MinHeight="104"
+                                                 MaxHeight="220"
+                                                 IsReadOnly="True"
+                                                 AcceptsReturn="True"
+                                                 TextWrapping="NoWrap"
+                                                 FontFamily="Consolas"
+                                                 FontSize="12"/>
+                                    </StackPanel>
+                                </controls:SettingsCard>
+                            </StackPanel>
+                        </controls:SettingsExpander.ItemsHeader>
+                    </controls:SettingsExpander>
+
                     <controls:SettingsExpander x:Uid="WebIntegrationCard"
                                                HorizontalAlignment="Stretch"
                                                HorizontalContentAlignment="Stretch">

@@ -202,7 +202,16 @@
     <value>More</value>
   </data>
   <data name="UrlErrorText.Text" xml:space="preserve">
-    <value>Please enter a valid URL</value>
+    <value>The input is not a valid URL</value>
+  </data>
+  <data name="LauncherUrlErrorText.Text" xml:space="preserve">
+    <value>The input is not a valid URL</value>
+  </data>
+  <data name="LauncherUrlTextBox.PlaceholderText" xml:space="preserve">
+    <value>Enter a URL</value>
+  </data>
+  <data name="LauncherAddButton.Content" xml:space="preserve">
+    <value>Add</value>
   </data>
   <data name="RestoreUrlButton.Content" xml:space="preserve">
     <value>Restore</value>
@@ -212,6 +221,12 @@
   </data>
   <data name="SaveUrlButton.Content" xml:space="preserve">
     <value>Apply</value>
+  </data>
+  <data name="PinnedSiteInfoHeaderText" xml:space="preserve">
+    <value>App information</value>
+  </data>
+  <data name="PinnedSiteInfoPublisherFormat" xml:space="preserve">
+    <value>Publisher: {0}</value>
   </data>
   <data name="DefaultHomeUrl" xml:space="preserve">
     <value>https://furry-xiyi.github.io/WinUIonWeb/</value>
@@ -290,6 +305,12 @@
   </data>
   <data name="DeveloperGroup.Text" xml:space="preserve">
     <value>Developer</value>
+  </data>
+  <data name="F12DevToolsCard.Header" xml:space="preserve">
+    <value>F12 Developer Tools</value>
+  </data>
+  <data name="F12DevToolsCard.Description" xml:space="preserve">
+    <value>Control whether pinned sites can open WebView developer tools</value>
   </data>
   <data name="WebIntegrationCard.Header" xml:space="preserve">
     <value>Web app integration</value>
@@ -721,5 +742,215 @@ setWinUIHostMaterial('acrylic');</value>
   </data>
   <data name="DeleteDownloadFileMenuItem.Text" xml:space="preserve">
     <value>Delete file</value>
+  </data>
+  <data name="ViteDevServerCard.Header" xml:space="preserve">
+    <value>Vite Dev Server</value>
+  </data>
+  <data name="ViteDevServerCard.Description" xml:space="preserve">
+    <value>Configure the local debug URL, start command, and runtime status</value>
+  </data>
+  <data name="ViteStartButton.Content" xml:space="preserve">
+    <value>Start</value>
+  </data>
+  <data name="ViteStopButton.Content" xml:space="preserve">
+    <value>Stop</value>
+  </data>
+  <data name="ViteRetryButton.Content" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="ViteServerConfigCard.Header" xml:space="preserve">
+    <value>Local debugging</value>
+  </data>
+  <data name="ViteServerConfigCard.Description" xml:space="preserve">
+    <value>Quickly target localhost:5173, or set a custom port and path</value>
+  </data>
+  <data name="ViteHostBox.Header" xml:space="preserve">
+    <value>Host</value>
+  </data>
+  <data name="ViteHostBox.PlaceholderText" xml:space="preserve">
+    <value>localhost</value>
+  </data>
+  <data name="VitePortNumberBox.Header" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="ViteUsePathCheckBox.Content" xml:space="preserve">
+    <value>Append path</value>
+  </data>
+  <data name="VitePathBox.Header" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="VitePathBox.PlaceholderText" xml:space="preserve">
+    <value>For example app/ or docs/</value>
+  </data>
+  <data name="ViteCommandBox.Header" xml:space="preserve">
+    <value>Start command</value>
+  </data>
+  <data name="ViteCommandBox.PlaceholderText" xml:space="preserve">
+    <value>npm run dev</value>
+  </data>
+  <data name="ViteWorkingDirectoryBox.Header" xml:space="preserve">
+    <value>Project folder</value>
+  </data>
+  <data name="ViteWorkingDirectoryBox.PlaceholderText" xml:space="preserve">
+    <value>Choose the Vite project folder</value>
+  </data>
+  <data name="ViteBrowseFolderButton.Content" xml:space="preserve">
+    <value>Browse</value>
+  </data>
+  <data name="ViteOpenFolderButton.Content" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="ViteUseDefaultButton.Content" xml:space="preserve">
+    <value>Use localhost:5173</value>
+  </data>
+  <data name="ViteOpenUrlButton.Content" xml:space="preserve">
+    <value>Open debug URL</value>
+  </data>
+  <data name="ViteReloadCurrentButton.Content" xml:space="preserve">
+    <value>Reload current container</value>
+  </data>
+  <data name="ViteServerStatusCard.Header" xml:space="preserve">
+    <value>Status and logs</value>
+  </data>
+  <data name="ViteServerStatusCard.Description" xml:space="preserve">
+    <value>Watch dev server reachability and warn when HMR disconnects</value>
+  </data>
+  <data name="ViteStatusNotChecked" xml:space="preserve">
+    <value>Dev server status has not been checked yet</value>
+  </data>
+  <data name="ViteStatusOnlineFormat" xml:space="preserve">
+    <value>{0} is reachable, HTTP {1}</value>
+  </data>
+  <data name="ViteStatusHttpErrorFormat" xml:space="preserve">
+    <value>{0} responded with HTTP {1}</value>
+  </data>
+  <data name="ViteStatusOfflineFormat" xml:space="preserve">
+    <value>{0} is not reachable</value>
+  </data>
+  <data name="ViteHealthCheckFailedFormat" xml:space="preserve">
+    <value>Status check failed: {0}</value>
+  </data>
+  <data name="ViteHmrDisconnectedHint" xml:space="preserve">
+    <value>The dev server disconnected after being online. HMR may be stale; retry the connection or reload the current container.</value>
+  </data>
+  <data name="ViteProcessAlreadyRunning" xml:space="preserve">
+    <value>The Vite start command is already running.</value>
+  </data>
+  <data name="ViteWorkingDirectoryMissingFormat" xml:space="preserve">
+    <value>Project folder does not exist: {0}</value>
+  </data>
+  <data name="ViteProcessStartedFormat" xml:space="preserve">
+    <value>Started: {0}</value>
+  </data>
+  <data name="ViteProcessStartFailedFormat" xml:space="preserve">
+    <value>Start failed: {0}</value>
+  </data>
+  <data name="ViteProcessNotRunning" xml:space="preserve">
+    <value>No Vite start command is running.</value>
+  </data>
+  <data name="ViteProcessStopRequested" xml:space="preserve">
+    <value>Stop requested for the start command.</value>
+  </data>
+  <data name="ViteProcessStopFailedFormat" xml:space="preserve">
+    <value>Stop failed: {0}</value>
+  </data>
+  <data name="ViteWorkingDirectoryNotSet" xml:space="preserve">
+    <value>Project folder has not been set.</value>
+  </data>
+  <data name="ViteOpenFolderFailedFormat" xml:space="preserve">
+    <value>Failed to open project folder: {0}</value>
+  </data>
+  <data name="ViteDevContainerDisplayName" xml:space="preserve">
+    <value>Vite debug</value>
+  </data>
+  <data name="ViteReloadUnavailable" xml:space="preserve">
+    <value>There is no current container to reload.</value>
+  </data>
+  <data name="ViteReloadRequested" xml:space="preserve">
+    <value>Reloaded the current container.</value>
+  </data>
+  <data name="ViteProcessExited" xml:space="preserve">
+    <value>The Vite start command exited.</value>
+  </data>
+  <data name="ContainerSettingsCard.Header" xml:space="preserve">
+    <value>Container management</value>
+  </data>
+  <data name="ContainerSettingsCard.Description" xml:space="preserve">
+    <value>Edit name, URL, icon, Start menu entry, and container data</value>
+  </data>
+  <data name="ContainerDiagnosticsCard.Header" xml:space="preserve">
+    <value>Developer diagnostics</value>
+  </data>
+  <data name="ContainerDiagnosticsCard.Description" xml:space="preserve">
+    <value>Inspect WebView, origin, profile, and manifest state</value>
+  </data>
+  <data name="ContainerDiagnosticRuntimeLabel.Text" xml:space="preserve">
+    <value>Runtime</value>
+  </data>
+  <data name="ContainerDiagnosticUrlLabel.Text" xml:space="preserve">
+    <value>Current URL</value>
+  </data>
+  <data name="ContainerDiagnosticOriginLabel.Text" xml:space="preserve">
+    <value>Origin</value>
+  </data>
+  <data name="ContainerDiagnosticProfileLabel.Text" xml:space="preserve">
+    <value>Profile</value>
+  </data>
+  <data name="ContainerDiagnosticManifestLabel.Text" xml:space="preserve">
+    <value>Manifest</value>
+  </data>
+  <data name="ContainerClearCacheButton.Content" xml:space="preserve">
+    <value>Clear cache</value>
+  </data>
+  <data name="ContainerReinjectScriptsButton.Content" xml:space="preserve">
+    <value>Reinject scripts</value>
+  </data>
+  <data name="ContainerOpenDevToolsButton.Content" xml:space="preserve">
+    <value>Open DevTools</value>
+  </data>
+  <data name="ContainerCopyDiagnosticsButton.Content" xml:space="preserve">
+    <value>Copy environment info</value>
+  </data>
+  <data name="ContainerDiagnosticManifestMissing" xml:space="preserve">
+    <value>No manifest name parsed</value>
+  </data>
+  <data name="ContainerDiagnosticRuntimeUnavailable" xml:space="preserve">
+    <value>Unable to read WebView2 Runtime version</value>
+  </data>
+  <data name="ContainerDiagnosticNameLabelText" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="ContainerDiagnosticRuntimeLabelText" xml:space="preserve">
+    <value>WebView2 Runtime</value>
+  </data>
+  <data name="ContainerDiagnosticUrlLabelText" xml:space="preserve">
+    <value>Current URL</value>
+  </data>
+  <data name="ContainerDiagnosticOriginLabelText" xml:space="preserve">
+    <value>Origin</value>
+  </data>
+  <data name="ContainerDiagnosticProfileLabelText" xml:space="preserve">
+    <value>Profile path</value>
+  </data>
+  <data name="ContainerDiagnosticManifestLabelText" xml:space="preserve">
+    <value>Manifest parse result</value>
+  </data>
+  <data name="LauncherDeveloperExpander.Header" xml:space="preserve">
+    <value>Developer</value>
+  </data>
+  <data name="LauncherVitePortNumberBox.Header" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="LauncherViteUsePathCheckBox.Content" xml:space="preserve">
+    <value>Append suffix</value>
+  </data>
+  <data name="LauncherVitePathBox.Header" xml:space="preserve">
+    <value>Suffix</value>
+  </data>
+  <data name="LauncherVitePathBox.PlaceholderText" xml:space="preserve">
+    <value>For example app/ or docs/</value>
+  </data>
+  <data name="LauncherViteUseUrlButton.Content" xml:space="preserve">
+    <value>Use debug URL</value>
   </data>
 </root>

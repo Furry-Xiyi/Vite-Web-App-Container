@@ -202,7 +202,16 @@
     <value>更多</value>
   </data>
   <data name="UrlErrorText.Text" xml:space="preserve">
-    <value>请填写正确网址</value>
+    <value>输入的不是正确网址</value>
+  </data>
+  <data name="LauncherUrlErrorText.Text" xml:space="preserve">
+    <value>输入的不是正确网址</value>
+  </data>
+  <data name="LauncherUrlTextBox.PlaceholderText" xml:space="preserve">
+    <value>请输入网址</value>
+  </data>
+  <data name="LauncherAddButton.Content" xml:space="preserve">
+    <value>添加</value>
   </data>
   <data name="RestoreUrlButton.Content" xml:space="preserve">
     <value>还原</value>
@@ -212,6 +221,12 @@
   </data>
   <data name="SaveUrlButton.Content" xml:space="preserve">
     <value>应用</value>
+  </data>
+  <data name="PinnedSiteInfoHeaderText" xml:space="preserve">
+    <value>应用信息</value>
+  </data>
+  <data name="PinnedSiteInfoPublisherFormat" xml:space="preserve">
+    <value>发布者：{0}</value>
   </data>
   <data name="DefaultHomeUrl" xml:space="preserve">
     <value>https://furry-xiyi.github.io/WinUIonWeb/</value>
@@ -290,6 +305,12 @@
   </data>
   <data name="DeveloperGroup.Text" xml:space="preserve">
     <value>开发者</value>
+  </data>
+  <data name="F12DevToolsCard.Header" xml:space="preserve">
+    <value>F12 开发人员工具</value>
+  </data>
+  <data name="F12DevToolsCard.Description" xml:space="preserve">
+    <value>控制已固定网址是否允许打开 WebView 开发人员工具</value>
   </data>
   <data name="WebIntegrationCard.Header" xml:space="preserve">
     <value>Web 应用接入</value>
@@ -721,5 +742,215 @@ setWinUIHostMaterial('acrylic');</value>
   </data>
   <data name="DeleteDownloadFileMenuItem.Text" xml:space="preserve">
     <value>删除文件</value>
+  </data>
+  <data name="ViteDevServerCard.Header" xml:space="preserve">
+    <value>Vite 开发服务器</value>
+  </data>
+  <data name="ViteDevServerCard.Description" xml:space="preserve">
+    <value>配置本机调试地址、启动命令和运行状态</value>
+  </data>
+  <data name="ViteStartButton.Content" xml:space="preserve">
+    <value>启动</value>
+  </data>
+  <data name="ViteStopButton.Content" xml:space="preserve">
+    <value>停止</value>
+  </data>
+  <data name="ViteRetryButton.Content" xml:space="preserve">
+    <value>重试</value>
+  </data>
+  <data name="ViteServerConfigCard.Header" xml:space="preserve">
+    <value>本机调试</value>
+  </data>
+  <data name="ViteServerConfigCard.Description" xml:space="preserve">
+    <value>快速指向 localhost:5173，或设置自定义端口和路径</value>
+  </data>
+  <data name="ViteHostBox.Header" xml:space="preserve">
+    <value>主机</value>
+  </data>
+  <data name="ViteHostBox.PlaceholderText" xml:space="preserve">
+    <value>localhost</value>
+  </data>
+  <data name="VitePortNumberBox.Header" xml:space="preserve">
+    <value>端口</value>
+  </data>
+  <data name="ViteUsePathCheckBox.Content" xml:space="preserve">
+    <value>附加路径</value>
+  </data>
+  <data name="VitePathBox.Header" xml:space="preserve">
+    <value>路径</value>
+  </data>
+  <data name="VitePathBox.PlaceholderText" xml:space="preserve">
+    <value>例如 app/ 或 docs/</value>
+  </data>
+  <data name="ViteCommandBox.Header" xml:space="preserve">
+    <value>启动命令</value>
+  </data>
+  <data name="ViteCommandBox.PlaceholderText" xml:space="preserve">
+    <value>npm run dev</value>
+  </data>
+  <data name="ViteWorkingDirectoryBox.Header" xml:space="preserve">
+    <value>项目目录</value>
+  </data>
+  <data name="ViteWorkingDirectoryBox.PlaceholderText" xml:space="preserve">
+    <value>选择 Vite 项目所在文件夹</value>
+  </data>
+  <data name="ViteBrowseFolderButton.Content" xml:space="preserve">
+    <value>浏览</value>
+  </data>
+  <data name="ViteOpenFolderButton.Content" xml:space="preserve">
+    <value>打开</value>
+  </data>
+  <data name="ViteUseDefaultButton.Content" xml:space="preserve">
+    <value>使用 localhost:5173</value>
+  </data>
+  <data name="ViteOpenUrlButton.Content" xml:space="preserve">
+    <value>打开调试地址</value>
+  </data>
+  <data name="ViteReloadCurrentButton.Content" xml:space="preserve">
+    <value>重新加载当前容器</value>
+  </data>
+  <data name="ViteServerStatusCard.Header" xml:space="preserve">
+    <value>状态与日志</value>
+  </data>
+  <data name="ViteServerStatusCard.Description" xml:space="preserve">
+    <value>监听 dev server 是否可达，并提示 HMR 断线</value>
+  </data>
+  <data name="ViteStatusNotChecked" xml:space="preserve">
+    <value>尚未检查开发服务器状态</value>
+  </data>
+  <data name="ViteStatusOnlineFormat" xml:space="preserve">
+    <value>{0} 可达，HTTP {1}</value>
+  </data>
+  <data name="ViteStatusHttpErrorFormat" xml:space="preserve">
+    <value>{0} 已响应，但状态码为 HTTP {1}</value>
+  </data>
+  <data name="ViteStatusOfflineFormat" xml:space="preserve">
+    <value>{0} 暂不可达</value>
+  </data>
+  <data name="ViteHealthCheckFailedFormat" xml:space="preserve">
+    <value>状态检查失败：{0}</value>
+  </data>
+  <data name="ViteHmrDisconnectedHint" xml:space="preserve">
+    <value>开发服务器刚才断开，HMR 可能已失效。可重试连接或重新加载当前容器。</value>
+  </data>
+  <data name="ViteProcessAlreadyRunning" xml:space="preserve">
+    <value>Vite 启动命令已在运行。</value>
+  </data>
+  <data name="ViteWorkingDirectoryMissingFormat" xml:space="preserve">
+    <value>项目目录不存在：{0}</value>
+  </data>
+  <data name="ViteProcessStartedFormat" xml:space="preserve">
+    <value>已启动：{0}</value>
+  </data>
+  <data name="ViteProcessStartFailedFormat" xml:space="preserve">
+    <value>启动失败：{0}</value>
+  </data>
+  <data name="ViteProcessNotRunning" xml:space="preserve">
+    <value>没有正在运行的 Vite 启动命令。</value>
+  </data>
+  <data name="ViteProcessStopRequested" xml:space="preserve">
+    <value>已请求停止启动命令。</value>
+  </data>
+  <data name="ViteProcessStopFailedFormat" xml:space="preserve">
+    <value>停止失败：{0}</value>
+  </data>
+  <data name="ViteWorkingDirectoryNotSet" xml:space="preserve">
+    <value>尚未设置项目目录。</value>
+  </data>
+  <data name="ViteOpenFolderFailedFormat" xml:space="preserve">
+    <value>打开项目目录失败：{0}</value>
+  </data>
+  <data name="ViteDevContainerDisplayName" xml:space="preserve">
+    <value>Vite 调试</value>
+  </data>
+  <data name="ViteReloadUnavailable" xml:space="preserve">
+    <value>当前没有可重新加载的容器。</value>
+  </data>
+  <data name="ViteReloadRequested" xml:space="preserve">
+    <value>已重新加载当前容器。</value>
+  </data>
+  <data name="ViteProcessExited" xml:space="preserve">
+    <value>Vite 启动命令已退出。</value>
+  </data>
+  <data name="ContainerSettingsCard.Header" xml:space="preserve">
+    <value>容器管理</value>
+  </data>
+  <data name="ContainerSettingsCard.Description" xml:space="preserve">
+    <value>编辑名称、网址、图标、开始菜单和容器数据</value>
+  </data>
+  <data name="ContainerDiagnosticsCard.Header" xml:space="preserve">
+    <value>开发者诊断</value>
+  </data>
+  <data name="ContainerDiagnosticsCard.Description" xml:space="preserve">
+    <value>查看 WebView、origin、profile 和 manifest 状态</value>
+  </data>
+  <data name="ContainerDiagnosticRuntimeLabel.Text" xml:space="preserve">
+    <value>Runtime</value>
+  </data>
+  <data name="ContainerDiagnosticUrlLabel.Text" xml:space="preserve">
+    <value>当前 URL</value>
+  </data>
+  <data name="ContainerDiagnosticOriginLabel.Text" xml:space="preserve">
+    <value>Origin</value>
+  </data>
+  <data name="ContainerDiagnosticProfileLabel.Text" xml:space="preserve">
+    <value>Profile</value>
+  </data>
+  <data name="ContainerDiagnosticManifestLabel.Text" xml:space="preserve">
+    <value>Manifest</value>
+  </data>
+  <data name="ContainerClearCacheButton.Content" xml:space="preserve">
+    <value>清缓存</value>
+  </data>
+  <data name="ContainerReinjectScriptsButton.Content" xml:space="preserve">
+    <value>重新注入脚本</value>
+  </data>
+  <data name="ContainerOpenDevToolsButton.Content" xml:space="preserve">
+    <value>打开 DevTools</value>
+  </data>
+  <data name="ContainerCopyDiagnosticsButton.Content" xml:space="preserve">
+    <value>复制环境信息</value>
+  </data>
+  <data name="ContainerDiagnosticManifestMissing" xml:space="preserve">
+    <value>未解析到 manifest 名称</value>
+  </data>
+  <data name="ContainerDiagnosticRuntimeUnavailable" xml:space="preserve">
+    <value>无法读取 WebView2 Runtime 版本</value>
+  </data>
+  <data name="ContainerDiagnosticNameLabelText" xml:space="preserve">
+    <value>名称</value>
+  </data>
+  <data name="ContainerDiagnosticRuntimeLabelText" xml:space="preserve">
+    <value>WebView2 Runtime</value>
+  </data>
+  <data name="ContainerDiagnosticUrlLabelText" xml:space="preserve">
+    <value>当前 URL</value>
+  </data>
+  <data name="ContainerDiagnosticOriginLabelText" xml:space="preserve">
+    <value>Origin</value>
+  </data>
+  <data name="ContainerDiagnosticProfileLabelText" xml:space="preserve">
+    <value>Profile 路径</value>
+  </data>
+  <data name="ContainerDiagnosticManifestLabelText" xml:space="preserve">
+    <value>Manifest 解析结果</value>
+  </data>
+  <data name="LauncherDeveloperExpander.Header" xml:space="preserve">
+    <value>开发者</value>
+  </data>
+  <data name="LauncherVitePortNumberBox.Header" xml:space="preserve">
+    <value>端口</value>
+  </data>
+  <data name="LauncherViteUsePathCheckBox.Content" xml:space="preserve">
+    <value>附加后缀</value>
+  </data>
+  <data name="LauncherVitePathBox.Header" xml:space="preserve">
+    <value>后缀</value>
+  </data>
+  <data name="LauncherVitePathBox.PlaceholderText" xml:space="preserve">
+    <value>例如 app/ 或 docs/</value>
+  </data>
+  <data name="LauncherViteUseUrlButton.Content" xml:space="preserve">
+    <value>使用调试地址</value>
   </data>
 </root>

@@ -32,73 +32,160 @@
                                             Tag="{x:Bind Id, Mode=OneWay}"
                                             Click="OpenContainerButton_Click"/>
                                     <controls:SettingsExpander.ItemsHeader>
-                                        <Grid RowSpacing="8"
-                                              MinWidth="320"
-                                              MaxWidth="760"
-                                              Padding="0,8,0,0">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
+                                        <StackPanel Spacing="0">
+                                            <controls:SettingsCard x:Uid="ContainerSettingsCard"
+                                                                   HorizontalAlignment="Stretch"
+                                                                   HorizontalContentAlignment="Stretch">
+                                                <Grid RowSpacing="8"
+                                                      MinWidth="320"
+                                                      MaxWidth="760">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
 
-                                            <TextBox x:Name="ContainerNameBox"
-                                                     x:Uid="ContainerNameBox"
-                                                     Text="{x:Bind DisplayName, Mode=OneWay}"
-                                                     TextChanged="ContainerTextBox_TextChanged"/>
-                                            <TextBox x:Name="ContainerUrlBox"
-                                                     Grid.Row="1"
-                                                     x:Uid="ContainerUrlBox"
-                                                     Text="{x:Bind HomeUrl, Mode=OneWay}"
-                                                     TextChanged="ContainerTextBox_TextChanged"/>
+                                                    <TextBox x:Name="ContainerNameBox"
+                                                             x:Uid="ContainerNameBox"
+                                                             Text="{x:Bind DisplayName, Mode=OneWay}"
+                                                             TextChanged="ContainerTextBox_TextChanged"/>
+                                                    <TextBox x:Name="ContainerUrlBox"
+                                                             Grid.Row="1"
+                                                             x:Uid="ContainerUrlBox"
+                                                             Text="{x:Bind HomeUrl, Mode=OneWay}"
+                                                             TextChanged="ContainerTextBox_TextChanged"/>
 
-                                            <StackPanel Grid.Row="2"
-                                                        Orientation="Horizontal"
-                                                        HorizontalAlignment="Right"
-                                                        Spacing="8">
-                                                <Button x:Uid="ContainerRefreshIconButton"
-                                                        Width="32"
-                                                        Height="32"
-                                                        Padding="0"
-                                                        Tag="{x:Bind Id, Mode=OneWay}"
-                                                        Click="RefreshContainerIconButton_Click">
-                                                    <FontIcon FontSize="14"
-                                                              Glyph="&#xE72C;"/>
-                                                </Button>
-                                                <Button x:Uid="ContainerClearDataButton"
-                                                        Width="32"
-                                                        Height="32"
-                                                        Padding="0"
-                                                        Tag="{x:Bind Id, Mode=OneWay}"
-                                                        Click="ClearContainerDataButton_Click">
-                                                    <FontIcon FontSize="14"
-                                                              Glyph="&#xEA99;"/>
-                                                </Button>
-                                                <Button x:Uid="ContainerUnpinButton"
-                                                        Width="32"
-                                                        Height="32"
-                                                        Padding="0"
-                                                        Tag="{x:Bind Id, Mode=OneWay}"
-                                                        Click="UnpinContainerButton_Click">
-                                                    <FontIcon FontSize="14"
-                                                              Glyph="&#xE77A;"/>
-                                                </Button>
-                                                <Button x:Uid="ContainerDeleteButton"
-                                                        Width="32"
-                                                        Height="32"
-                                                        Padding="0"
-                                                        IsEnabled="{x:Bind CanDelete, Mode=OneWay}"
-                                                        Tag="{x:Bind Id, Mode=OneWay}"
-                                                        Click="DeleteContainerButton_Click">
-                                                    <FontIcon FontSize="14"
-                                                              Glyph="&#xE74D;"/>
-                                                </Button>
-                                                <Button x:Uid="ContainerSaveButton"
-                                                        Style="{StaticResource AccentButtonStyle}"
-                                                        Tag="{x:Bind Id, Mode=OneWay}"
-                                                        Click="SaveContainerButton_Click"/>
-                                            </StackPanel>
-                                        </Grid>
+                                                    <StackPanel Grid.Row="2"
+                                                                Orientation="Horizontal"
+                                                                HorizontalAlignment="Right"
+                                                                Spacing="8">
+                                                        <Button x:Uid="ContainerRefreshIconButton"
+                                                                Width="32"
+                                                                Height="32"
+                                                                Padding="0"
+                                                                Tag="{x:Bind Id, Mode=OneWay}"
+                                                                Click="RefreshContainerIconButton_Click">
+                                                            <FontIcon FontSize="14"
+                                                                      Glyph="&#xE72C;"/>
+                                                        </Button>
+                                                        <Button x:Uid="ContainerClearDataButton"
+                                                                Width="32"
+                                                                Height="32"
+                                                                Padding="0"
+                                                                Tag="{x:Bind Id, Mode=OneWay}"
+                                                                Click="ClearContainerDataButton_Click">
+                                                            <FontIcon FontSize="14"
+                                                                      Glyph="&#xEA99;"/>
+                                                        </Button>
+                                                        <Button x:Uid="ContainerUnpinButton"
+                                                                Width="32"
+                                                                Height="32"
+                                                                Padding="0"
+                                                                Tag="{x:Bind Id, Mode=OneWay}"
+                                                                Click="UnpinContainerButton_Click">
+                                                            <FontIcon FontSize="14"
+                                                                      Glyph="&#xE77A;"/>
+                                                        </Button>
+                                                        <Button x:Uid="ContainerDeleteButton"
+                                                                Width="32"
+                                                                Height="32"
+                                                                Padding="0"
+                                                                IsEnabled="{x:Bind CanDelete, Mode=OneWay}"
+                                                                Tag="{x:Bind Id, Mode=OneWay}"
+                                                                Click="DeleteContainerButton_Click">
+                                                            <FontIcon FontSize="14"
+                                                                      Glyph="&#xE74D;"/>
+                                                        </Button>
+                                                        <Button x:Uid="ContainerSaveButton"
+                                                                Style="{StaticResource AccentButtonStyle}"
+                                                                Tag="{x:Bind Id, Mode=OneWay}"
+                                                                Click="SaveContainerButton_Click"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </controls:SettingsCard>
+
+                                            <controls:SettingsCard x:Uid="ContainerDiagnosticsCard"
+                                                                   HorizontalAlignment="Stretch"
+                                                                   HorizontalContentAlignment="Stretch">
+                                                <Grid RowSpacing="6"
+                                                      MinWidth="320"
+                                                      MaxWidth="760">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBlock x:Uid="ContainerDiagnosticRuntimeLabel"
+                                                               FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{x:Bind WebViewRuntimeVersion, Mode=OneWay}"
+                                                               TextWrapping="Wrap"/>
+
+                                                    <TextBlock Grid.Row="1"
+                                                               x:Uid="ContainerDiagnosticUrlLabel"
+                                                               FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Row="1"
+                                                               Grid.Column="1"
+                                                               Text="{x:Bind DiagnosticCurrentUrl, Mode=OneWay}"
+                                                               TextWrapping="Wrap"
+                                                               TextTrimming="CharacterEllipsis"/>
+
+                                                    <TextBlock Grid.Row="2"
+                                                               x:Uid="ContainerDiagnosticOriginLabel"
+                                                               FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Row="2"
+                                                               Grid.Column="1"
+                                                               Text="{x:Bind DiagnosticOrigin, Mode=OneWay}"
+                                                               TextWrapping="Wrap"/>
+
+                                                    <TextBlock Grid.Row="3"
+                                                               x:Uid="ContainerDiagnosticProfileLabel"
+                                                               FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Row="3"
+                                                               Grid.Column="1"
+                                                               Text="{x:Bind ProfilePath, Mode=OneWay}"
+                                                               TextWrapping="Wrap"/>
+
+                                                    <TextBlock Grid.Row="4"
+                                                               x:Uid="ContainerDiagnosticManifestLabel"
+                                                               FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Row="4"
+                                                               Grid.Column="1"
+                                                               Text="{x:Bind ManifestSummary, Mode=OneWay}"
+                                                               TextWrapping="Wrap"/>
+
+                                                    <StackPanel Grid.Row="5"
+                                                                Grid.ColumnSpan="2"
+                                                                Orientation="Horizontal"
+                                                                HorizontalAlignment="Right"
+                                                                Spacing="8"
+                                                                Margin="0,6,0,0">
+                                                        <Button x:Uid="ContainerClearCacheButton"
+                                                                Tag="{x:Bind Id, Mode=OneWay}"
+                                                                Click="ClearContainerCacheButton_Click"/>
+                                                        <Button x:Uid="ContainerReinjectScriptsButton"
+                                                                IsEnabled="{x:Bind IsCurrentContainer, Mode=OneWay}"
+                                                                Tag="{x:Bind Id, Mode=OneWay}"
+                                                                Click="ReinjectContainerScriptsButton_Click"/>
+                                                        <Button x:Uid="ContainerOpenDevToolsButton"
+                                                                IsEnabled="{x:Bind IsCurrentContainer, Mode=OneWay}"
+                                                                Tag="{x:Bind Id, Mode=OneWay}"
+                                                                Click="OpenContainerDevToolsButton_Click"/>
+                                                        <Button x:Uid="ContainerCopyDiagnosticsButton"
+                                                                Tag="{x:Bind Id, Mode=OneWay}"
+                                                                Click="CopyContainerDiagnosticsButton_Click"/>
+                                                    </StackPanel>
+                                                </Grid>
+                                            </controls:SettingsCard>
+                                        </StackPanel>
                                     </controls:SettingsExpander.ItemsHeader>
                                 </controls:SettingsExpander>
                             </DataTemplate>
