@@ -102,7 +102,7 @@ namespace WinUIonWebUWP
             coreTitleBar.LayoutMetricsChanged += CoreTitleBar_LayoutMetricsChanged;
             UpdateTitleBarButtonInset(coreTitleBar);
 
-            SettingsFrame.Navigated += SettingsFrame_Navigated;
+            ContentFrame.Navigated += ContentFrame_Navigated;
 
             var navigationManager = SystemNavigationManager.GetForCurrentView();
             navigationManager.BackRequested += SystemNavigationManager_BackRequested;
