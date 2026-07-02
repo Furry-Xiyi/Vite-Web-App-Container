@@ -11,7 +11,6 @@ using Windows.Storage;
 using Windows.Storage.AccessCache;
 using Windows.Storage.Pickers;
 using Windows.System;
-using Windows.UI.StartScreen;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media;
@@ -46,16 +45,24 @@ namespace WinUIonWebUWP.Pages
 
         private void AboutPage_Loaded(object sender, RoutedEventArgs e)
         {
-            LoadRules();
-            LoadAppInfo();
-            PerSiteCssToggle.IsOn = SettingsManager.Instance.UsePerSiteTransparentCss;
-            UpdateRuleHostVisibility();
-            F12DevToolsToggle.IsOn = SettingsManager.Instance.IsF12DevToolsEnabled;
-            LoadDevToolsSites();
-            UpdateDownloadFolderPathText();
-            SoundToggle.IsOn = SettingsManager.Instance.EnableSound;
-            LoadViteDevServerSettings();
-            _isInitializing = false;
+            _isInitializing = true;
+            try
+            {
+                LoadRules();
+                LoadAppInfo();
+                PerSiteCssToggle.IsOn = SettingsManager.Instance.UsePerSiteTransparentCss;
+                UpdateRuleHostVisibility();
+                F12DevToolsToggle.IsOn = SettingsManager.Instance.IsF12DevToolsEnabled;
+                LoadDevToolsSites();
+                UpdateDownloadFolderPathText();
+                SoundToggle.IsOn = SettingsManager.Instance.EnableSound;
+                LoadViteDevServerSettings();
+            }
+            finally
+            {
+                _isInitializing = false;
+            }
+
             _viteHealthTimer.Start();
             _ = CheckViteDevServerAsync();
         }
@@ -78,7 +85,8 @@ namespace WinUIonWebUWP.Pages
         {
             DevToolsSites.Clear();
             var isMasterEnabled = SettingsManager.Instance.IsF12DevToolsEnabled;
-            foreach (var container in SettingsManager.Instance.Containers.Where(item => SecondaryTile.Exists(item.Id)))
+            foreach (var container in SettingsManager.Instance.Containers
+                .Where(item => !SettingsManager.Instance.IsDefaultContainer(item.Id)))
             {
                 DevToolsSites.Add(new DevToolsSiteViewModel(container, isMasterEnabled));
             }
@@ -217,8 +225,7 @@ namespace WinUIonWebUWP.Pages
             if (_isInitializing) return;
 
             SettingsManager.Instance.IsF12DevToolsEnabled = F12DevToolsToggle.IsOn;
-            LoadDevToolsSites();
-            RefreshDevToolsSitesView();
+            ReloadDevToolsSitesView();
             App.RefreshDevToolsAvailabilityForOpenViews();
         }
 
@@ -226,12 +233,28 @@ namespace WinUIonWebUWP.Pages
         {
             if (_isInitializing) return;
 
-            if (sender is ToggleSwitch toggle
-                && toggle.DataContext is DevToolsSiteViewModel site)
+            if (sender is not ToggleSwitch toggle)
             {
-                SettingsManager.Instance.SetContainerDevToolsEnabled(site.Id, toggle.IsOn);
-                App.RefreshDevToolsAvailabilityForOpenViews();
+                return;
             }
+
+            var containerId = (toggle.DataContext as DevToolsSiteViewModel)?.Id
+                ?? (toggle.Tag as string);
+
+            if (string.IsNullOrWhiteSpace(containerId)
+                || SettingsManager.Instance.IsDefaultContainer(containerId))
+            {
+                return;
+            }
+
+            SettingsManager.Instance.SetContainerDevToolsEnabled(containerId, toggle.IsOn);
+
+            if (toggle.DataContext is DevToolsSiteViewModel site)
+            {
+                site.IsDevToolsEnabled = toggle.IsOn;
+            }
+
+            App.RefreshDevToolsAvailabilityForOpenViews();
         }
 
         private void UpdateRuleHostVisibility()
@@ -253,6 +276,21 @@ namespace WinUIonWebUWP.Pages
         {
             DevToolsSitesItemsControl.ItemsSource = null;
             DevToolsSitesItemsControl.ItemsSource = DevToolsSites;
+        }
+
+        private void ReloadDevToolsSitesView()
+        {
+            var wasInitializing = _isInitializing;
+            _isInitializing = true;
+            try
+            {
+                LoadDevToolsSites();
+                RefreshDevToolsSitesView();
+            }
+            finally
+            {
+                _isInitializing = wasInitializing;
+            }
         }
 
         private static DependencyObject FindCardRoot(DependencyObject element)
@@ -781,23 +819,40 @@ namespace WinUIonWebUWP.Pages
         }
     }
 
-    public sealed class DevToolsSiteViewModel
+    public sealed class DevToolsSiteViewModel : System.ComponentModel.INotifyPropertyChanged
     {
+        private bool _isDevToolsEnabled;
+
         public DevToolsSiteViewModel(WebContainer container, bool isMasterEnabled)
         {
             Id = container.Id;
             DisplayName = SettingsManager.Instance.GetContainerSiteName(Id);
             HomeUrl = container.HomeUrl;
             IconUri = SettingsManager.Instance.GetContainerIconUri(Id);
-            IsDevToolsEnabled = SettingsManager.Instance.IsContainerDevToolsEnabled(Id);
+            _isDevToolsEnabled = SettingsManager.Instance.IsContainerDevToolsEnabled(Id);
             IsMasterEnabled = isMasterEnabled;
         }
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 
         public string Id { get; }
         public string DisplayName { get; }
         public string HomeUrl { get; }
         public Uri IconUri { get; }
-        public bool IsDevToolsEnabled { get; }
+        public bool IsDevToolsEnabled
+        {
+            get => _isDevToolsEnabled;
+            set
+            {
+                if (_isDevToolsEnabled == value)
+                {
+                    return;
+                }
+
+                _isDevToolsEnabled = value;
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(nameof(IsDevToolsEnabled)));
+            }
+        }
         public bool IsMasterEnabled { get; }
     }
 }

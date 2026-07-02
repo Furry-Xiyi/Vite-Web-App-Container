@@ -60,14 +60,26 @@ namespace WinUIonWebUWP.Pages
         private async void SaveContainerButton_Click(object sender, RoutedEventArgs e)
         {
             if (GetContainerId(sender) is not string containerId
-                || FindItem(containerId) is not ContainerItemViewModel item
-                || !Uri.TryCreate(item.EditHomeUrl, UriKind.Absolute, out var uri)
+                || FindItem(containerId) is not ContainerItemViewModel item)
+            {
+                return;
+            }
+
+            var displayName = item.EditDisplayName;
+            var homeUrl = item.EditHomeUrl;
+            if (TryGetContainerEditValues(sender, out var editedDisplayName, out var editedHomeUrl))
+            {
+                displayName = editedDisplayName;
+                homeUrl = editedHomeUrl;
+            }
+
+            if (!Uri.TryCreate(homeUrl, UriKind.Absolute, out var uri)
                 || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != "edge"))
             {
                 return;
             }
 
-            SettingsManager.Instance.UpdateContainer(containerId, item.EditDisplayName, item.EditHomeUrl);
+            SettingsManager.Instance.UpdateContainer(containerId, displayName, homeUrl);
             if (MainPage.Current?.ContainerId == containerId)
             {
                 MainPage.Current.RefreshContainerIdentity();
@@ -95,7 +107,7 @@ namespace WinUIonWebUWP.Pages
                 return;
             }
 
-            await ClearContainerProfileFolderAsync(containerId);
+            await ClearContainerProfileFolderFromButtonAsync(sender, containerId);
         }
 
         private async void ClearContainerCacheButton_Click(object sender, RoutedEventArgs e)
@@ -105,7 +117,7 @@ namespace WinUIonWebUWP.Pages
                 return;
             }
 
-            await ClearContainerProfileFolderAsync(containerId);
+            await ClearContainerProfileFolderFromButtonAsync(sender, containerId);
         }
 
         private void ReinjectContainerScriptsButton_Click(object sender, RoutedEventArgs e)
@@ -139,22 +151,44 @@ namespace WinUIonWebUWP.Pages
             Clipboard.SetContent(dataPackage);
         }
 
+        private static async Task ClearContainerProfileFolderFromButtonAsync(object sender, string containerId)
+        {
+            var control = sender as Control;
+            if (control != null)
+            {
+                control.IsEnabled = false;
+            }
+
+            try
+            {
+                await ClearContainerProfileFolderAsync(containerId);
+            }
+            finally
+            {
+                if (control != null)
+                {
+                    control.IsEnabled = true;
+                }
+            }
+        }
+
         private static async Task ClearContainerProfileFolderAsync(string containerId)
         {
             try
             {
                 var folderPath = SettingsManager.Instance.GetContainerWebViewDataFolder(containerId);
-                if (Directory.Exists(folderPath))
+                await Task.Run(() =>
                 {
-                    Directory.Delete(folderPath, true);
-                }
+                    if (Directory.Exists(folderPath))
+                    {
+                        Directory.Delete(folderPath, true);
+                    }
+                });
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Containers] Clear data failed: {ex.Message}");
             }
-
-            await Task.CompletedTask;
         }
 
         private async void ToggleContainerPinButton_Click(object sender, RoutedEventArgs e)
@@ -209,6 +243,65 @@ namespace WinUIonWebUWP.Pages
             }
         }
 
+        private static bool TryGetContainerEditValues(object sender, out string displayName, out string homeUrl)
+        {
+            displayName = "";
+            homeUrl = "";
+
+            if (sender is not DependencyObject source)
+            {
+                return false;
+            }
+
+            var root = FindAncestorWithNamedTextBoxes(source);
+            var nameBox = root == null ? null : FindNamedDescendant<TextBox>(root, "ContainerNameBox");
+            var urlBox = root == null ? null : FindNamedDescendant<TextBox>(root, "ContainerUrlBox");
+            if (nameBox == null || urlBox == null)
+            {
+                return false;
+            }
+
+            displayName = nameBox.Text;
+            homeUrl = urlBox.Text;
+            return true;
+        }
+
+        private static DependencyObject? FindAncestorWithNamedTextBoxes(DependencyObject source)
+        {
+            for (var current = source; current != null; current = VisualTreeHelper.GetParent(current))
+            {
+                if (FindNamedDescendant<TextBox>(current, "ContainerNameBox") != null
+                    && FindNamedDescendant<TextBox>(current, "ContainerUrlBox") != null)
+                {
+                    return current;
+                }
+            }
+
+            return null;
+        }
+
+        private static T? FindNamedDescendant<T>(DependencyObject root, string name)
+            where T : FrameworkElement
+        {
+            var count = VisualTreeHelper.GetChildrenCount(root);
+            for (var i = 0; i < count; i++)
+            {
+                var child = VisualTreeHelper.GetChild(root, i);
+                if (child is T element && element.Name == name)
+                {
+                    return element;
+                }
+
+                var match = FindNamedDescendant<T>(child, name);
+                if (match != null)
+                {
+                    return match;
+                }
+            }
+
+            return null;
+        }
+
         private ContainerItemViewModel? FindItem(string containerId)
         {
             foreach (var item in Containers)
@@ -257,7 +350,7 @@ namespace WinUIonWebUWP.Pages
             Id = container.Id;
             DisplayName = SettingsManager.Instance.GetContainerSiteName(Id);
             HomeUrl = container.HomeUrl;
-            EditDisplayName = DisplayName;
+            EditDisplayName = SettingsManager.Instance.GetContainerDisplayName(Id);
             EditHomeUrl = HomeUrl;
             CanDelete = !SettingsManager.Instance.IsDefaultContainer(Id);
             IsCurrentContainer = string.Equals(Id, currentContainerId, StringComparison.OrdinalIgnoreCase);

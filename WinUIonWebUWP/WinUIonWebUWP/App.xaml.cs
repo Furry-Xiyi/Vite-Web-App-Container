@@ -283,6 +283,7 @@ namespace WinUIonWebUWP
             // 此处同步更新标题栏颜色
             CustomizeTitleBar();
             MainPage.Current?.RefreshHostedTitleBarForeground();
+            MainPage.Current?.GetContainerPageForSettings()?.RefreshHostTheme();
 
             if (CurrentMaterial == BackgroundMaterial.Acrylic)
             {
@@ -639,20 +640,29 @@ namespace WinUIonWebUWP
                 return manifestName;
             }
 
+            var documentTitle = container.DocumentTitle?.Trim();
+            if (!string.IsNullOrWhiteSpace(documentTitle))
+            {
+                return documentTitle;
+            }
+
             var displayName = container.DisplayName?.Trim();
             if (!string.IsNullOrWhiteSpace(displayName))
             {
                 return displayName;
             }
 
-            return string.IsNullOrWhiteSpace(container.HomeUrl)
-                ? new ResourceLoader().GetString("AppDisplayName")
-                : container.HomeUrl;
+            return new ResourceLoader().GetString("AppDisplayName");
         }
 
         public string GetContainerManifestName(string containerId)
         {
             return GetContainerOrDefault(containerId).ManifestName?.Trim() ?? "";
+        }
+
+        public string GetContainerDocumentTitle(string containerId)
+        {
+            return GetContainerOrDefault(containerId).DocumentTitle?.Trim() ?? "";
         }
 
         public Uri GetContainerIconUri(string containerId)
@@ -702,7 +712,8 @@ namespace WinUIonWebUWP
 
         public bool IsContainerDevToolsEnabled(string containerId)
         {
-            return GetContainerOrDefault(containerId).IsDevToolsEnabled;
+            var container = GetContainerOrDefault(containerId);
+            return !container.HasDevToolsPreference || container.IsDevToolsEnabled;
         }
 
         public IReadOnlyList<string> GetContainerHomeUrlHistory(string containerId)
@@ -721,6 +732,8 @@ namespace WinUIonWebUWP
             if (!string.Equals(container.HomeUrl, homeUrl, StringComparison.OrdinalIgnoreCase))
             {
                 container.HostedTitleBarHeight = 0;
+                container.ManifestName = "";
+                container.DocumentTitle = "";
             }
 
             container.HomeUrl = homeUrl;
@@ -743,7 +756,9 @@ namespace WinUIonWebUWP
 
         public void SetContainerDevToolsEnabled(string containerId, bool isEnabled)
         {
-            GetContainerOrDefault(containerId).IsDevToolsEnabled = isEnabled;
+            var container = GetContainerOrDefault(containerId);
+            container.HasDevToolsPreference = true;
+            container.IsDevToolsEnabled = isEnabled;
             SaveSettings();
         }
 
@@ -762,6 +777,24 @@ namespace WinUIonWebUWP
             }
 
             container.ManifestName = name;
+            SaveSettings();
+        }
+
+        public void SetContainerDocumentTitle(string containerId, string? documentTitle)
+        {
+            var title = documentTitle?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(title))
+            {
+                return;
+            }
+
+            var container = GetContainerOrDefault(containerId);
+            if (string.Equals(container.DocumentTitle, title, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            container.DocumentTitle = title;
             SaveSettings();
         }
 
@@ -785,6 +818,8 @@ namespace WinUIonWebUWP
             if (!string.Equals(container.HomeUrl, homeUrl, StringComparison.OrdinalIgnoreCase))
             {
                 container.HostedTitleBarHeight = 0;
+                container.ManifestName = "";
+                container.DocumentTitle = "";
             }
 
             container.DisplayName = SanitizeDisplayName(displayName, homeUrl);
@@ -872,6 +907,13 @@ namespace WinUIonWebUWP
             }
 
             container.DisplayName = SanitizeDisplayName(displayName, homeUrl);
+            if (!string.Equals(container.HomeUrl, homeUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                container.ManifestName = "";
+                container.DocumentTitle = "";
+                container.HostedTitleBarHeight = 0;
+            }
+
             container.HomeUrl = homeUrl;
             if (!string.IsNullOrWhiteSpace(iconPath))
             {
@@ -1152,6 +1194,7 @@ namespace WinUIonWebUWP
                 container.Id ??= "";
                 container.DisplayName ??= "";
                 container.ManifestName ??= "";
+                container.DocumentTitle ??= "";
                 container.HomeUrl ??= "";
                 container.IconPath ??= "";
                 container.HomeUrlHistory ??= new List<string>();
@@ -1325,12 +1368,14 @@ namespace WinUIonWebUWP
         public string Id { get; set; } = "";
         public string DisplayName { get; set; } = "";
         public string ManifestName { get; set; } = "";
+        public string DocumentTitle { get; set; } = "";
         public string HomeUrl { get; set; } = "";
         public string IconPath { get; set; } = "";
         public List<string> HomeUrlHistory { get; set; } = new List<string>();
         public string AppTheme { get; set; } = "";
         public string AppMaterial { get; set; } = "";
         public bool IsDevToolsEnabled { get; set; } = false;
+        public bool HasDevToolsPreference { get; set; } = false;
         public double HostedTitleBarHeight { get; set; } = 0;
     }
 
@@ -1369,18 +1414,6 @@ namespace WinUIonWebUWP
                     Id = "root",
                     Selector = "html.winui-webview-host",
                     Css = "--app-bg:transparent!important;background:transparent!important;background-color:transparent!important;"
-                },
-                new TransparentCssRule
-                {
-                    Id = "light-vars",
-                    Selector = "html.winui-webview-host.theme-light",
-                    Css = "--host-layer-default:rgba(255,255,255,.50);--host-nav-pane-bg:rgba(243,243,243,.72);--host-flyout-bg:rgba(252,252,252,.78);"
-                },
-                new TransparentCssRule
-                {
-                    Id = "dark-vars",
-                    Selector = "html.winui-webview-host.theme-dark",
-                    Css = "--host-layer-default:rgba(58,58,58,.25);--host-nav-pane-bg:rgba(32,32,32,.72);--host-flyout-bg:rgba(44,44,44,.78);"
                 },
                 new TransparentCssRule
                 {

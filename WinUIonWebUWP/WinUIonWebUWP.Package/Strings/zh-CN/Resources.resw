@@ -232,7 +232,7 @@
     <value>https://furry-xiyi.github.io/WinUIonWeb/</value>
   </data>
   <data name="TransparentWebViewScript" xml:space="preserve">
-    <value>(()=&gt;{window.__WINUI_ON_WEB_UWP_APP__=true;const root=document.documentElement;root.classList.add('winui-webview-host');const id='winui-on-web-transparent-background';let style=document.getElementById(id);if(!style){style=document.createElement('style');style.id=id;(document.head||root).appendChild(style);}style.textContent=`html.winui-webview-host{--app-bg:transparent!important;background:transparent!important;background-color:transparent!important;}html.winui-webview-host:not(.theme-dark){--host-layer-default:rgba(255,255,255,.50);--host-nav-pane-bg:rgba(243,243,243,.72);--host-flyout-bg:rgba(252,252,252,.78);}html.winui-webview-host.theme-dark{--host-layer-default:rgba(58,58,58,.25);--host-nav-pane-bg:rgba(32,32,32,.72);--host-flyout-bg:rgba(44,44,44,.78);}@media (prefers-color-scheme:dark){html.winui-webview-host:not(.theme-light){--host-layer-default:rgba(58,58,58,.25);--host-nav-pane-bg:rgba(32,32,32,.72);--host-flyout-bg:rgba(44,44,44,.78);}}html.winui-webview-host body,html.winui-webview-host #app,html.winui-webview-host .win-nav-shell{background:transparent!important;background-color:transparent!important;}html.winui-webview-host .win-nav-top-bar{background-color:transparent!important;}html.winui-webview-host .win-nav-content{background:var(--host-layer-default)!important;background-color:var(--host-layer-default)!important;}html.winui-webview-host .win-nav-shell.is-overlay-left .win-nav-left-panel:not(.is-compact){background:var(--host-nav-pane-bg)!important;background-color:var(--host-nav-pane-bg)!important;backdrop-filter:blur(28px) saturate(1.35)!important;-webkit-backdrop-filter:blur(28px) saturate(1.35)!important;}html.winui-webview-host .win-menu-flyout{background:var(--host-flyout-bg)!important;background-color:var(--host-flyout-bg)!important;backdrop-filter:var(--flyout-backdrop)!important;-webkit-backdrop-filter:var(--flyout-backdrop)!important;}`;})()</value>
+    <value>(()=&gt;{window.__WINUI_ON_WEB_UWP_APP__=true;const root=document.documentElement;root.classList.add('winui-webview-host');const id='winui-on-web-transparent-background';let style=document.getElementById(id);if(!style){style=document.createElement('style');style.id=id;(document.head||root).appendChild(style);}style.textContent=`html.winui-webview-host{--app-bg:transparent!important;--host-layer-default:rgba(255,255,255,.50);--host-nav-pane-bg:rgba(243,243,243,.72);--host-flyout-bg:rgba(252,252,252,.78);background:transparent!important;background-color:transparent!important;}@media (prefers-color-scheme:dark){html.winui-webview-host{--host-layer-default:rgba(58,58,58,.25);--host-nav-pane-bg:rgba(32,32,32,.72);--host-flyout-bg:rgba(44,44,44,.78);}}html.winui-webview-host body,html.winui-webview-host #app,html.winui-webview-host .win-nav-shell{background:transparent!important;background-color:transparent!important;}html.winui-webview-host .win-nav-top-bar{background-color:transparent!important;}html.winui-webview-host .win-nav-content{background:var(--host-layer-default)!important;background-color:var(--host-layer-default)!important;}html.winui-webview-host .win-nav-shell.is-overlay-left .win-nav-left-panel:not(.is-compact){background:var(--host-nav-pane-bg)!important;background-color:var(--host-nav-pane-bg)!important;backdrop-filter:blur(28px) saturate(1.35)!important;-webkit-backdrop-filter:blur(28px) saturate(1.35)!important;}html.winui-webview-host .win-menu-flyout{background:var(--host-flyout-bg)!important;background-color:var(--host-flyout-bg)!important;backdrop-filter:var(--flyout-backdrop)!important;-webkit-backdrop-filter:var(--flyout-backdrop)!important;}`;})()</value>
   </data>
   <data name="UrlAutoSuggestBox.Header" xml:space="preserve">
     <value>自定义网址</value>
@@ -316,31 +316,7 @@
     <value>Web 应用接入</value>
   </data>
   <data name="WebIntegrationCard.Description" xml:space="preserve">
-    <value>说明 Vite 或普通 Web 应用如何请求修改应用主题与背景材质</value>
-  </data>
-  <data name="WebThemeIntegrationCard.Header" xml:space="preserve">
-    <value>主题</value>
-  </data>
-  <data name="WebThemeIntegrationCard.Description" xml:space="preserve">
-    <value>网页可请求宿主应用切换为跟随系统、浅色或深色主题</value>
-  </data>
-  <data name="WebThemeIntegrationScriptBox.Text" xml:space="preserve">
-    <value>const setWinUIHostTheme = (value) =&gt; {
-  if (!window.__WINUI_ON_WEB_UWP_APP__ || !window.chrome?.webview) {
-    return;
-  }
-
-  window.chrome.webview.postMessage({
-    source: 'WinUIonWeb',
-    type: 'appSettingChanged',
-    key: 'theme',
-    value
-  });
-};
-
-setWinUIHostTheme('system');
-setWinUIHostTheme('light');
-setWinUIHostTheme('dark');</value>
+    <value>说明 Vite 或普通 Web 应用如何请求修改应用背景材质</value>
   </data>
   <data name="WebMaterialIntegrationCard.Header" xml:space="preserve">
     <value>材质</value>

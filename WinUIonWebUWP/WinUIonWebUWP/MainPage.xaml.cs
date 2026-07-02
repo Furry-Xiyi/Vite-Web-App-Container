@@ -106,6 +106,7 @@ namespace WinUIonWebUWP
             _pendingContainerId = null;
             _containerDisplayName = SettingsManager.Instance.GetContainerDisplayName(_containerId);
             _hostedManifestName = SettingsManager.Instance.GetContainerManifestName(_containerId);
+            _hostedDocumentTitle = SettingsManager.Instance.GetContainerDocumentTitle(_containerId);
             AppThemeManager.LoadSettings(_containerId);
             AppThemeManager.ApplyTheme();
             AppThemeManager.ApplyMaterial();
@@ -209,20 +210,14 @@ namespace WinUIonWebUWP
             }
 
             var nextTheme = NormalizeHostedTitleBarTheme(theme);
-            if (nextTheme.HasValue && AppThemeManager.CurrentTheme != nextTheme.Value)
-            {
-                _hasHostedTitleBarThemeOverride = true;
-                AppThemeManager.CurrentTheme = nextTheme.Value;
-                AppThemeManager.ApplyTheme();
-                AppThemeManager.ApplyMaterial();
-                GetContainerPage()?.RefreshHostTheme();
-            }
 
             var hasForeground = TryParseCssColor(foreground, out var color);
             var hasBackground = TryParseCssColor(background, out var backgroundColor);
             if (!hasForeground)
             {
-                color = GetThemeForegroundColor();
+                color = nextTheme.HasValue
+                    ? nextTheme.Value == ElementTheme.Dark ? Colors.White : Colors.Black
+                    : GetThemeForegroundColor();
             }
 
             if (hasBackground && GetContrastRatio(color, backgroundColor) < 4.5)
@@ -234,8 +229,39 @@ namespace WinUIonWebUWP
                 color = nextTheme.Value == ElementTheme.Dark ? Colors.White : Colors.Black;
             }
 
+            var themeOverride = nextTheme ?? (hasForeground ? InferThemeFromForeground(color) : null);
+            if (themeOverride.HasValue)
+            {
+                ApplyHostedThemeOverride(themeOverride.Value);
+            }
+
             _hostedTitleBarForegroundColor = color;
             ApplyHostedTitleBarForeground();
+        }
+
+        public void ApplyHostedPageTheme(string? theme)
+        {
+            var nextTheme = NormalizeHostedTitleBarTheme(theme);
+            if (!nextTheme.HasValue)
+            {
+                return;
+            }
+
+            ApplyHostedThemeOverride(nextTheme.Value);
+            _hostedTitleBarForegroundColor = nextTheme.Value == ElementTheme.Dark
+                ? Colors.White
+                : Colors.Black;
+
+            ApplyHostedTitleBarForeground();
+            GetContainerPage()?.RefreshHostTheme();
+        }
+
+        private void ApplyHostedThemeOverride(ElementTheme theme)
+        {
+            _hasHostedTitleBarThemeOverride = true;
+            AppThemeManager.CurrentTheme = theme;
+            AppThemeManager.ApplyTheme();
+            AppThemeManager.ApplyMaterial();
         }
 
         private static ElementTheme? NormalizeHostedTitleBarTheme(string? theme)
@@ -246,6 +272,13 @@ namespace WinUIonWebUWP
                 "dark" => ElementTheme.Dark,
                 _ => null
             };
+        }
+
+        private static ElementTheme? InferThemeFromForeground(Color foreground)
+        {
+            return GetRelativeLuminance(foreground) >= 0.5
+                ? ElementTheme.Dark
+                : ElementTheme.Light;
         }
 
         private static bool TryParseCssColor(string? value, out Color color)
@@ -714,14 +747,21 @@ namespace WinUIonWebUWP
             GetContainerPage()?.RefreshDevToolsAvailability();
         }
 
+        public void ApplyCurrentContainerTheme()
+        {
+            ResetHostedTitleBarAppearance();
+            AppThemeManager.LoadSettings(_containerId);
+            AppThemeManager.ApplyTheme();
+            AppThemeManager.ApplyMaterial();
+            GetContainerPage()?.RefreshHostTheme();
+        }
+
         public void ActivateCurrentContainer()
         {
             _containerId = SettingsManager.Instance.ActiveContainerId;
             RefreshContainerIdentity();
-            AppThemeManager.LoadSettings(_containerId);
-            AppThemeManager.ApplyTheme();
-            AppThemeManager.ApplyMaterial();
-            _hostedDocumentTitle = "";
+            ApplyCurrentContainerTheme();
+            _hostedDocumentTitle = SettingsManager.Instance.GetContainerDocumentTitle(_containerId);
             _hostedManifestName = SettingsManager.Instance.GetContainerManifestName(_containerId);
             _hostedDocumentIconUri = null;
             _hostedDocumentIconCandidates = Array.Empty<Uri>();
@@ -735,6 +775,7 @@ namespace WinUIonWebUWP
         {
             _containerDisplayName = SettingsManager.Instance.GetContainerDisplayName(_containerId);
             _hostedManifestName = SettingsManager.Instance.GetContainerManifestName(_containerId);
+            _hostedDocumentTitle = SettingsManager.Instance.GetContainerDocumentTitle(_containerId);
             TitleBarAppName.Text = _containerDisplayName;
             ImgAppIcon.Source = new BitmapImage(SettingsManager.Instance.GetContainerIconUri(_containerId));
             UpdateWindowTitle();
@@ -767,6 +808,7 @@ namespace WinUIonWebUWP
         {
             if (!isVisible && !_isHostedPageLoaded && _isHostedTitleBarVisible)
             {
+                _requestedHostedTitleBarVisible = true;
                 return;
             }
 
@@ -820,6 +862,7 @@ namespace WinUIonWebUWP
         {
             if (_isHostedTitleBarVisible == isVisible)
             {
+                ApplyHostedTitleBarLayout(isVisible);
                 if (isVisible)
                 {
                     UpdateTitleBarButtonInset(CoreApplication.GetCurrentView().TitleBar);
@@ -832,15 +875,29 @@ namespace WinUIonWebUWP
             }
 
             _isHostedTitleBarVisible = isVisible;
-            TitleBarIdentityArea.Visibility = isVisible ? Visibility.Collapsed : Visibility.Visible;
-            ContentFrame.Margin = isVisible ? new Thickness(0) : new Thickness(0, 32, 0, 0);
+            ApplyHostedTitleBarLayout(isVisible);
             UpdateTitleBarButtonInset(CoreApplication.GetCurrentView().TitleBar);
             ApplyHostedTitleBarForeground();
+        }
+
+        private void ApplyHostedTitleBarLayout(bool isVisible)
+        {
+            TitleBarIdentityArea.Visibility = isVisible ? Visibility.Collapsed : Visibility.Visible;
+
+            if (_isSettingsHostOpen)
+            {
+                return;
+            }
+
+            ContentFrame.Margin = isVisible
+                ? new Thickness(0)
+                : new Thickness(0, DefaultTitleBarHeight, 0, 0);
         }
 
         public void UpdateHostedDocumentInfo(string? title, Uri? iconUri, IReadOnlyList<Uri>? iconCandidates = null)
         {
             _hostedDocumentTitle = string.IsNullOrWhiteSpace(title) ? "" : title.Trim();
+            SettingsManager.Instance.SetContainerDocumentTitle(_containerId, _hostedDocumentTitle);
             _hostedDocumentIconUri = iconUri;
             if (iconCandidates != null && iconCandidates.Count > 0)
             {
@@ -907,9 +964,9 @@ namespace WinUIonWebUWP
 
         private string GetHostedTitleBarText()
         {
-            if (ShouldUseHostedManifestName())
+            if (ShouldUseHostedSiteName())
             {
-                return _hostedManifestName;
+                return GetHostedSiteName();
             }
 
             return _containerDisplayName;
@@ -917,16 +974,26 @@ namespace WinUIonWebUWP
 
         private void UpdateWindowTitle()
         {
-            ApplicationView.GetForCurrentView().Title = ShouldUseHostedManifestName()
-                ? _hostedManifestName
+            ApplicationView.GetForCurrentView().Title = ShouldUseHostedSiteName()
+                ? GetHostedSiteName()
                 : "";
         }
 
-        private bool ShouldUseHostedManifestName()
+        private bool ShouldUseHostedSiteName()
         {
             return !_isSettingsHostOpen
                 && ContentFrame?.CurrentSourcePageType == typeof(Pages.ContainerPage)
-                && !string.IsNullOrWhiteSpace(_hostedManifestName);
+                && !string.IsNullOrWhiteSpace(GetHostedSiteName());
+        }
+
+        private string GetHostedSiteName()
+        {
+            if (!string.IsNullOrWhiteSpace(_hostedManifestName))
+            {
+                return _hostedManifestName;
+            }
+
+            return _hostedDocumentTitle;
         }
 
         private void MoreFlyout_Opening(object sender, object e)
@@ -1472,6 +1539,7 @@ namespace WinUIonWebUWP
         {
             _isHostedPageLoaded = false;
             _hostedManifestName = SettingsManager.Instance.GetContainerManifestName(_containerId);
+            _hostedDocumentTitle = SettingsManager.Instance.GetContainerDocumentTitle(_containerId);
             _preparedTileIconUri = null;
             _preparedTileIconKey = "";
             _preparedTileIcons = TileIconSet.Empty;
@@ -2548,7 +2616,12 @@ namespace WinUIonWebUWP
                 return _hostedManifestName;
             }
 
-            return SettingsManager.Instance.GetContainerManifestName(_containerId);
+            if (!string.IsNullOrWhiteSpace(_hostedDocumentTitle))
+            {
+                return _hostedDocumentTitle;
+            }
+
+            return SettingsManager.Instance.GetContainerSiteName(_containerId);
         }
 
         private static IReadOnlyList<string> GetPinnedTileNames(string? excludedContainerId)

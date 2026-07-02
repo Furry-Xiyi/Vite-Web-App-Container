@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using WinUIonWebUWP.Dialogs;
 using Windows.ApplicationModel.Resources;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.System;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -28,7 +29,8 @@ namespace WinUIonWebUWP.Pages
         private static readonly System.Threading.SemaphoreSlim WebViewInitializationLock = new System.Threading.SemaphoreSlim(1, 1);
         private MainPage? _owner;
         private bool _isInitialized;
-        private bool _transparentScriptRegistered;
+        private string _transparentScriptId = "";
+        private string _transparentScript = "";
         private bool _hostTitleBarScriptRegistered;
         private bool _suppressNextNavigationFailureForDownload;
         private string _lastNavigationUrl = "";
@@ -37,6 +39,7 @@ namespace WinUIonWebUWP.Pages
         private double _hostTitleBarLeftInset;
         private double _hostTitleBarRightInset = 48;
         private double _hostTitleBarHeight = 32;
+        private string _hostedAppTheme = "System";
         private readonly ObservableCollection<string> _launcherUrlSuggestions = new ObservableCollection<string>();
         private bool _isInitializingLauncherViteSettings = true;
 
@@ -61,6 +64,8 @@ const hostGeometry=window.__WINUI_ON_WEB_TITLEBAR_GEOMETRY__||{leftInset:0,right
 window.__WINUI_ON_WEB_TITLEBAR_GEOMETRY__=hostGeometry;
 let envPolyfillStyle=null;
 let manifestDetectionPending=true;
+let manifestDetectionInFlight=false;
+let lastManifestHref='';
 if(!window.__WINUI_ON_WEB_FOCUS_BRIDGE__){
   window.__WINUI_ON_WEB_FOCUS_BRIDGE__=true;
   window.addEventListener('blur',()=>{
@@ -156,6 +161,11 @@ let titleBarStateFrame=0;
 let pendingTitleBarState=null;
 let titleBarDetectionFrame=0;
 let titleBarHideTimer=0;
+let hostThemeFrame=0;
+let stableHostTheme=null;
+let pendingHostTheme=null;
+let pendingHostThemeCount=0;
+let lastPostedHostTheme='';
 const titleBarHideDelayMs=220;
 const titleBarLoadingHideDelayMs=900;
 const getTitleBarHideDelay=()=>document.readyState==='complete'?titleBarHideDelayMs:titleBarLoadingHideDelayMs;
@@ -174,11 +184,13 @@ const scheduleTitleBarState=(visible,height)=>{
     postTitleBarState(state.visible,state.height);
   });
 };
-const interactiveSelector='button,input,textarea,select,a[href],summary,[contenteditable],[role=""button""],[role=""link""],[role=""textbox""],[role=""searchbox""],[role=""combobox""],[role=""menuitem""],[tabindex]';
+const interactiveSelector='button,input,textarea,select,a[href],summary,[contenteditable],[role=""button""],[role=""link""],[role=""tab""],[role=""option""],[role=""switch""],[role=""checkbox""],[role=""textbox""],[role=""searchbox""],[role=""combobox""],[role=""menuitem""]';
+const broadInteractiveSelector='[aria-haspopup],[aria-expanded],[tabindex],[data-e2e],[data-click],[data-testid],[onclick]';
 let interactiveRectsFrame=0;
 let lastInteractiveRectsJson='';
 let titleBarLayoutRefreshFrame=0;
 let titleBarResizeObserver=null;
+let documentResizeObserver=null;
 let observedTitleBarElement=null;
 const getAppRegion=(element)=>{
   const style=getComputedStyle(element);
@@ -187,7 +199,16 @@ const getAppRegion=(element)=>{
 const isLikelyInteractiveElement=(element)=>{
   if(element.matches(interactiveSelector))return true;
   const style=getComputedStyle(element);
-  return style.cursor==='pointer'||typeof element.onclick==='function'||element.hasAttribute('onclick');
+  return element.matches(broadInteractiveSelector)||style.cursor==='pointer'||typeof element.onclick==='function';
+};
+const isButtonSizedTitlebarElement=(element)=>{
+  const rects=Array.from(element.getClientRects());
+  if(rects.length===0)return false;
+  return rects.some((rect)=>{
+    const width=rect.width;
+    const height=rect.height;
+    return width>=12&&height>=12&&width<=220&&height<=64;
+  });
 };
 const isInteractiveElement=(element)=>{
   if(!element||element.disabled)return false;
@@ -198,7 +219,7 @@ const isInteractiveElement=(element)=>{
   }
   const explicitNoDrag=getAppRegion(element)==='no-drag';
   if(explicitNoDrag&&!isLikelyInteractiveElement(element))return false;
-  return explicitNoDrag||element.matches(interactiveSelector);
+  return explicitNoDrag||element.matches(interactiveSelector)||(isLikelyInteractiveElement(element)&&isButtonSizedTitlebarElement(element));
 };
 const titleBarRegionClass='winui-titlebar-region';
 const titleBarNoDragClass='winui-titlebar-no-drag';
@@ -221,6 +242,20 @@ const getTitleBarInteractionRects=()=>{
 const intersectsAnyTitleBarInteractionRect=(clientRect)=>{
   return getTitleBarInteractionRects().some((titleRect)=>clientRect.left<titleRect.right&&clientRect.right>titleRect.left&&clientRect.top<titleRect.bottom&&clientRect.bottom>titleRect.top);
 };
+const getInteractiveCandidates=(scope=document)=>{
+  const titleRects=getTitleBarInteractionRects();
+  const intersectsTitleRects=(element)=>Array.from(element.getClientRects()).some((rect)=>titleRects.some((titleRect)=>rect.left<titleRect.right&&rect.right>titleRect.left&&rect.top<titleRect.bottom&&rect.bottom>titleRect.top));
+  const explicitElements=Array.from(scope.querySelectorAll(interactiveSelector)).filter(intersectsTitleRects);
+  const explicitSet=new Set(explicitElements);
+  const broadElements=[];
+  for(const element of Array.from(scope.querySelectorAll(broadInteractiveSelector))){
+    if(explicitSet.has(element))continue;
+    if(!intersectsTitleRects(element))continue;
+    if(isButtonSizedTitlebarElement(element)||getAppRegion(element)==='no-drag')broadElements.push(element);
+    if(broadElements.length>=96)break;
+  }
+  return Array.from(new Set(explicitElements.concat(broadElements)));
+};
 const clearMarkedTitleBarRegions=()=>{
   if(markedTitleBarElement)markedTitleBarElement.classList.remove(titleBarRegionClass);
   markedTitleBarElement=null;
@@ -237,7 +272,7 @@ const markTitleBarRegions=(titleBar)=>{
   }
   markedTitleBarElement=titleBar;
   if(!titleBar.classList.contains(titleBarRegionClass))titleBar.classList.add(titleBarRegionClass);
-  const elements=Array.from(new Set(Array.from(titleBar.querySelectorAll(interactiveSelector)).concat(Array.from(document.querySelectorAll('*')).filter((element)=>getAppRegion(element)==='no-drag'))));
+  const elements=getInteractiveCandidates(document);
   const nextNoDragElements=[];
   for(const element of elements){
     if(!isInteractiveElement(element))continue;
@@ -257,9 +292,20 @@ const markTitleBarRegions=(titleBar)=>{
   }
   markedNoDragElements=nextNoDragElements;
 };
+const expandInteractiveRectForTitleBar=(clientRect,titleRect)=>{
+  const left=clientRect.left;
+  const right=clientRect.right;
+  let top=clientRect.top;
+  let bottom=clientRect.bottom;
+  if(clientRect.top<titleRect.bottom&&clientRect.bottom>titleRect.top){
+    top=titleRect.top;
+    bottom=titleRect.bottom;
+  }
+  return {left,top,right,bottom};
+};
 const collectInteractiveRects=()=>{
   const titleRects=getTitleBarInteractionRects();
-  const elements=Array.from(new Set(Array.from(document.querySelectorAll(interactiveSelector)).concat(Array.from(document.querySelectorAll('*')).filter((element)=>getAppRegion(element)==='no-drag'))));
+  const elements=getInteractiveCandidates(document);
   const rects=[];
   for(const element of elements){
     if(!isInteractiveElement(element))continue;
@@ -267,10 +313,11 @@ const collectInteractiveRects=()=>{
     if(style.display==='none'||style.visibility==='hidden'||style.pointerEvents==='none')continue;
     for(const clientRect of Array.from(element.getClientRects())){
       for(const titleRect of titleRects){
-        const left=Math.max(titleRect.left,clientRect.left);
-        const top=Math.max(titleRect.top,clientRect.top);
-        const right=Math.min(titleRect.right,clientRect.right);
-        const bottom=Math.min(titleRect.bottom,clientRect.bottom);
+        const expandedRect=expandInteractiveRectForTitleBar(clientRect,titleRect);
+        const left=Math.max(titleRect.left,expandedRect.left);
+        const top=Math.max(titleRect.top,expandedRect.top);
+        const right=Math.min(titleRect.right,expandedRect.right);
+        const bottom=Math.min(titleRect.bottom,expandedRect.bottom);
         if(right-left>=2&&bottom-top>=2){
           rects.push({left,top,width:right-left,height:bottom-top});
         }
@@ -295,6 +342,15 @@ const scheduleInteractiveRects=()=>{
     interactiveRectsFrame=0;
     postInteractiveRects();
   });
+};
+const scheduleRealtimeTitleBarRefresh=()=>{
+  scheduleTitleBarLayoutRefresh();
+  scheduleInteractiveRects();
+  setTimeout(scheduleInteractiveRects,50);
+  setTimeout(scheduleInteractiveRects,180);
+};
+window.__WINUI_ON_WEB_REFRESH_TITLEBAR_EXCLUSIONS__=()=>{
+  scheduleRealtimeTitleBarRefresh();
 };
 let titleBarAppearanceFrame=0;
 let lastTitleBarAppearanceJson='';
@@ -352,10 +408,19 @@ const buttonForegroundForBackground=(background)=>{
     ? {r:255,g:255,b:255,a:1,mode:'light'}
     : {r:0,g:0,b:0,a:1,mode:'dark'};
 };
+const buttonForegroundForTheme=(theme)=>theme==='dark'
+  ? {r:255,g:255,b:255,a:1,mode:'light'}
+  : {r:0,g:0,b:0,a:1,mode:'dark'};
 const toHexColor=(color)=>{
   if(!color)return null;
   const part=(value)=>Math.max(0,Math.min(255,Math.round(value))).toString(16).padStart(2,'0');
   return '#'+part(color.r)+part(color.g)+part(color.b);
+};
+const resolveColorSchemeTokens=(tokens)=>{
+  const normalized=(tokens||[]).filter((token)=>token==='dark'||token==='light');
+  if(normalized.length===1)return normalized[0];
+  if(normalized.includes('dark')&&normalized.includes('light'))return getPreferredColorSchemeTheme();
+  return null;
 };
 const getExplicitTheme=()=>{
   const root=document.documentElement;
@@ -378,8 +443,51 @@ const getExplicitTheme=()=>{
     body?getComputedStyle(body).colorScheme:null,
     (document.querySelector('meta[name=color-scheme]')||{}).content
   ].filter(Boolean).join(' ').trim().toLowerCase().split(/\s+/);
-  if(colorSchemeTokens.length===1&&(colorSchemeTokens[0]==='dark'||colorSchemeTokens[0]==='light'))return colorSchemeTokens[0];
-  return null;
+  return resolveColorSchemeTokens(colorSchemeTokens);
+};
+const getPreferredColorSchemeTheme=()=>{
+  try{
+    if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches)return 'dark';
+  }catch{}
+  return 'light';
+};
+const getPageTheme=()=>{
+  const explicitTheme=getExplicitTheme();
+  if(explicitTheme)return explicitTheme;
+  const rootBg=getRootBackground();
+  if(rootBg)return colorLuminance(rootBg)<0.48?'dark':'light';
+  return getPreferredColorSchemeTheme();
+};
+const postStableHostTheme=(theme)=>{
+  if(!window.chrome||!window.chrome.webview||!window.chrome.webview.postMessage)return;
+  if(theme!=='dark'&&theme!=='light')return;
+  if(theme===lastPostedHostTheme)return;
+  lastPostedHostTheme=theme;
+  window.chrome.webview.postMessage({source:'WinUIonWeb',type:'hostThemeChanged',theme});
+};
+const scheduleHostThemeSync=()=>{
+  if(hostThemeFrame)return;
+  hostThemeFrame=requestAnimationFrame(()=>{
+    hostThemeFrame=0;
+    const nextTheme=getPageTheme();
+    if(nextTheme!==pendingHostTheme){
+      pendingHostTheme=nextTheme;
+      pendingHostThemeCount=1;
+      requestAnimationFrame(scheduleHostThemeSync);
+      return;
+    }
+    pendingHostThemeCount+=1;
+    if(pendingHostThemeCount<3){
+      requestAnimationFrame(scheduleHostThemeSync);
+      return;
+    }
+    if(nextTheme!==stableHostTheme){
+      stableHostTheme=nextTheme;
+      lastTitleBarAppearanceJson='';
+      postStableHostTheme(nextTheme);
+      scheduleTitleBarLayoutRefresh();
+    }
+  });
 };
 const getEffectiveBackground=(element,fallback)=>{
   let color=null;
@@ -403,6 +511,19 @@ const getEffectiveBackground=(element,fallback)=>{
     probe.remove();
   }
   return blendColor(color,fallback);
+};
+const hasPaintedBackground=(element)=>{
+  for(let current=element;current;current=current.parentElement){
+    const bg=parseCssColor(getComputedStyle(current).backgroundColor);
+    if(bg&&bg.a>0.05)return true;
+  }
+  for(const selector of ['body','html']){
+    const target=document.querySelector(selector);
+    if(!target)continue;
+    const bg=parseCssColor(getComputedStyle(target).backgroundColor);
+    if(bg&&bg.a>0.05)return true;
+  }
+  return false;
 };
 const getRootBackground=()=>{
   const bodyBg=document.body?parseCssColor(getComputedStyle(document.body).backgroundColor):null;
@@ -432,8 +553,9 @@ const getPointBackground=(x,y,fallback)=>{
 };
 const getButtonUnderlayBackground=(theme)=>{
   const lightFallback={r:255,g:255,b:255,a:1};
+  const darkFallback={r:0,g:0,b:0,a:1};
   const rootBg=getRootBackground();
-  const fallback=rootBg||lightFallback;
+  const fallback=rootBg||(theme==='dark'?darkFallback:lightFallback);
   const height=Math.max(1,hostGeometry.height||32);
   const y=Math.max(1,Math.min(window.innerHeight-1,height/2));
   const rightInset=Math.max(32,clampNumber(hostGeometry.rightInset,48));
@@ -500,16 +622,20 @@ const postTitleBarAppearance=(titleBar,visible)=>{
   if(!window.chrome||!window.chrome.webview||!window.chrome.webview.postMessage)return;
   if(!visible)return;
   const explicitTheme=getExplicitTheme();
-  const background=getButtonUnderlayBackground(explicitTheme)||getSampledTitleBarBackground(titleBar,explicitTheme);
-  const theme=explicitTheme||(background?(colorLuminance(background)<0.48?'dark':'light'):null);
-  const buttonForeground=buttonForegroundForBackground(background);
+  const pageTheme=explicitTheme||getPageTheme();
+  const background=getButtonUnderlayBackground(pageTheme)||getSampledTitleBarBackground(titleBar,pageTheme);
+  const theme=pageTheme||(background?(colorLuminance(background)<0.48?'dark':'light'):null);
+  const transparentTitleBarBackground=theme&&(titleBar?!hasPaintedBackground(titleBar):!getRootBackground());
+  const buttonForeground=transparentTitleBarBackground
+    ? buttonForegroundForTheme(theme)
+    : buttonForegroundForBackground(background);
   lastButtonForegroundMode=buttonForeground.mode;
   const payload={
     source:'WinUIonWeb',
     type:'titleBarAppearanceChanged',
     theme,
     foreground:toHexColor(buttonForeground),
-    background:toHexColor(background)
+    background:transparentTitleBarBackground?null:toHexColor(background)
   };
   const json=JSON.stringify(payload);
   if(json===lastTitleBarAppearanceJson)return;
@@ -577,15 +703,37 @@ const setOverlayVisible=(visible)=>{
   overlay.visible=next;
   setTitleBarCssGeometry();
   dispatchGeometryChange();
+  if(next){
+    commitTitleBarState(true,hostGeometry.height||32,window.__WINUI_ON_WEB_LAST_TITLEBAR_ELEMENT__||findTitleBarElement());
+  }
   requestAnimationFrame(scheduleTitleBarLayoutRefresh);
 };
 window.__WINUI_ON_WEB_SET_WCO_VISIBLE__=setOverlayVisible;
+const fetchManifestJson=async(url)=>{
+  const controller=typeof AbortController==='function'?new AbortController():null;
+  const timer=controller?setTimeout(()=>controller.abort(),1200):0;
+  try{
+    const response=await fetch(url,{credentials:'same-origin',signal:controller?controller.signal:undefined});
+    postDebug('Manifest fetch '+url+' -> '+response.status);
+    if(!response.ok)return null;
+    return await response.json();
+  }finally{
+    if(timer)clearTimeout(timer);
+  }
+};
 const detectManifestTitleBar=async()=>{
+  if(manifestDetectionInFlight)return;
+  manifestDetectionInFlight=true;
+  try{
   const link=document.querySelector('link[rel~=""manifest""]');
   if(!link||!link.href){
     postDebug('No manifest link found.');
   }else{
+    lastManifestHref=link.href;
     postDebug('Manifest link found: '+link.href);
+    setOverlayVisible(true);
+    manifestDetectionPending=false;
+    detectTitleBar();
   }
   const urls=[];
   if(link&&link.href)urls.push(link.href);
@@ -597,13 +745,12 @@ const detectManifestTitleBar=async()=>{
   postDebug('Manifest candidates: '+candidates.join(', '));
   for(const url of candidates){
     try{
-      const response=await fetch(url,{credentials:'same-origin'});
-      postDebug('Manifest fetch '+url+' -> '+response.status);
-      if(!response.ok)continue;
-      const manifest=await response.json();
+      const manifest=await fetchManifestJson(url);
+      if(!manifest)continue;
       const displayOverride=Array.isArray(manifest.display_override)?manifest.display_override:[];
       postDebug('Manifest display_override: '+JSON.stringify(displayOverride));
-      setOverlayVisible(displayOverride.includes('window-controls-overlay'));
+      const hasWindowControlsOverlay=displayOverride.includes('window-controls-overlay');
+      setOverlayVisible(hasWindowControlsOverlay);
       manifestDetectionPending=false;
       detectTitleBar();
       return;
@@ -628,17 +775,26 @@ const detectManifestTitleBar=async()=>{
   manifestDetectionPending=false;
   postDebug('No usable manifest with window-controls-overlay was found.');
   detectTitleBar();
+  }finally{
+    manifestDetectionInFlight=false;
+  }
 };
 window.__WINUI_ON_WEB_DETECT_MANIFEST_TITLEBAR__=detectManifestTitleBar;
 const detectTitleBar=(allowStableHide=false)=>{
   const titleBar=findTitleBarElement();
   let visible=overlay.visible;
   let height=hostGeometry.height;
+  let hasVisibleTitleBarElement=false;
   if(titleBar){
     const style=getComputedStyle(titleBar);
     const rect=titleBar.getBoundingClientRect();
-    visible=style.display!=='none'&&style.visibility!=='hidden'&&titleBar.getClientRects().length>0;
+    hasVisibleTitleBarElement=style.display!=='none'&&style.visibility!=='hidden'&&titleBar.getClientRects().length>0;
+    visible=hasVisibleTitleBarElement;
     if(visible)height=Math.max(32,Math.ceil(Math.max(rect.height||0,rect.bottom||0,hostGeometry.height||32)));
+  }
+  if(hasVisibleTitleBarElement){
+    commitTitleBarState(true,height,titleBar);
+    return;
   }
   if(!visible&&manifestDetectionPending&&window.__WINUI_ON_WEB_HOST_TITLEBAR_VISIBLE__===undefined){
     return;
@@ -670,19 +826,32 @@ const findTitleBarElement=()=>{
 const startDetecting=()=>{
   addHostClass();
   setTitleBarCssGeometry();
+  scheduleHostThemeSync();
   detectManifestTitleBar();
   detectTitleBar();
   observeTitleBarLayoutTargets(window.__WINUI_ON_WEB_LAST_TITLEBAR_ELEMENT__||null);
-  new MutationObserver(scheduleTitleBarLayoutRefresh).observe(document.documentElement||document,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style','hidden','disabled','type','href','role','tabindex','contenteditable','data-theme','theme','data-color-mode','data-prefers-color-scheme','content','data-winui-titlebar','data-titlebar']});
+  if(window.ResizeObserver&&!documentResizeObserver){
+    documentResizeObserver=new ResizeObserver(()=>scheduleRealtimeTitleBarRefresh());
+    if(document.documentElement)documentResizeObserver.observe(document.documentElement);
+    if(document.body)documentResizeObserver.observe(document.body);
+  }
+  new MutationObserver(()=>{
+    scheduleHostThemeSync();
+    const manifestLink=document.querySelector('link[rel~=""manifest""]');
+    if(manifestLink&&manifestLink.href&&manifestLink.href!==lastManifestHref){
+      detectManifestTitleBar();
+    }
+    scheduleRealtimeTitleBarRefresh();
+  }).observe(document.documentElement||document,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style','hidden','disabled','type','href','rel','role','aria-haspopup','aria-expanded','tabindex','contenteditable','data-theme','theme','data-color-mode','data-prefers-color-scheme','content','data-winui-titlebar','data-titlebar','data-e2e','data-click','data-testid']});
   try{
     const colorSchemeQuery=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)');
     if(colorSchemeQuery){
-      const onColorSchemeChanged=()=>scheduleTitleBarLayoutRefresh();
+      const onColorSchemeChanged=()=>{scheduleHostThemeSync();scheduleTitleBarLayoutRefresh();};
       if(colorSchemeQuery.addEventListener)colorSchemeQuery.addEventListener('change',onColorSchemeChanged);
       else if(colorSchemeQuery.addListener)colorSchemeQuery.addListener(onColorSchemeChanged);
     }
   }catch{}
-  window.addEventListener('load',scheduleTitleBarLayoutRefresh,{once:true});
+  window.addEventListener('load',()=>window.__WINUI_ON_WEB_REFRESH_TITLEBAR_EXCLUSIONS__&&window.__WINUI_ON_WEB_REFRESH_TITLEBAR_EXCLUSIONS__(),{once:true});
   window.addEventListener('transitionrun',scheduleTitleBarLayoutRefresh,true);
   window.addEventListener('transitionend',scheduleTitleBarLayoutRefresh,true);
   window.addEventListener('animationstart',scheduleTitleBarLayoutRefresh,true);
@@ -768,6 +937,7 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             this.NavigationCacheMode = NavigationCacheMode.Required;
             LauncherUrlTextBox.ItemsSource = _launcherUrlSuggestions;
             this.Loaded += ContainerPage_Loaded;
+            this.Unloaded += ContainerPage_Unloaded;
         }
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
@@ -780,6 +950,9 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
 
         private async void ContainerPage_Loaded(object sender, RoutedEventArgs e)
         {
+            CoreWindow.GetForCurrentThread().Dispatcher.AcceleratorKeyActivated -= Dispatcher_AcceleratorKeyActivated;
+            CoreWindow.GetForCurrentThread().Dispatcher.AcceleratorKeyActivated += Dispatcher_AcceleratorKeyActivated;
+
             if (IsLauncherContainer)
             {
                 ShowLauncher();
@@ -793,6 +966,33 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             {
                 Navigate(_owner?.ContainerHomeUrl ?? SettingsManager.Instance.HomeUrl);
             }
+        }
+
+        private void ContainerPage_Unloaded(object sender, RoutedEventArgs e)
+        {
+            CoreWindow.GetForCurrentThread().Dispatcher.AcceleratorKeyActivated -= Dispatcher_AcceleratorKeyActivated;
+        }
+
+        private void Dispatcher_AcceleratorKeyActivated(CoreDispatcher sender, AcceleratorKeyEventArgs args)
+        {
+            if (args.EventType != CoreAcceleratorKeyEventType.KeyDown
+                && args.EventType != CoreAcceleratorKeyEventType.SystemKeyDown)
+            {
+                return;
+            }
+
+            if (args.VirtualKey != VirtualKey.F12 || IsLauncherContainer)
+            {
+                return;
+            }
+
+            if (!IsDevToolsEnabledForCurrentContainer())
+            {
+                return;
+            }
+
+            args.Handled = true;
+            OpenDevToolsWindow();
         }
 
         private bool IsLauncherContainer =>
@@ -1037,10 +1237,11 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             await DetectHostTitleBarAsync();
         }
 
-        public void OpenDevToolsWindow()
+        public async void OpenDevToolsWindow()
         {
             try
             {
+                await ApplyDevToolsAvailabilityAsync();
                 RootWebView.CoreWebView2?.OpenDevToolsWindow();
             }
             catch (Exception ex)
@@ -1103,8 +1304,8 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             _lastHttpStatusCode = 0;
             LoadingOverlay.Visibility = Visibility.Visible;
             NavigationErrorOverlay.Visibility = Visibility.Collapsed;
-            ResetHostTitleBarForNavigation();
             _owner?.SetHostedPageLoading(args.Uri);
+            ResetHostTitleBarForNavigation();
         }
 
         private void ResetHostTitleBarForNavigation()
@@ -1309,6 +1510,17 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
                     return;
                 }
 
+                if (type.GetString() == "hostThemeChanged"
+                    && root.TryGetProperty("theme", out var hostTheme)
+                    && hostTheme.ValueKind == JsonValueKind.String)
+                {
+                    if (_hostedAppTheme == "System")
+                    {
+                        _owner?.ApplyHostedPageTheme(hostTheme.GetString());
+                    }
+                    return;
+                }
+
                 if (type.GetString() == "titleBarAppearanceChanged")
                 {
                     string? theme = root.TryGetProperty("theme", out var themeValue)
@@ -1403,9 +1615,7 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
                     var settings = RootWebView.CoreWebView2?.Settings;
                     if (settings != null)
                     {
-                        var containerId = _owner?.ContainerId ?? SettingsManager.Instance.ActiveContainerId;
-                        settings.AreDevToolsEnabled = SettingsManager.Instance.IsF12DevToolsEnabled
-                            && SettingsManager.Instance.IsContainerDevToolsEnabled(containerId);
+                        settings.AreDevToolsEnabled = IsDevToolsEnabledForCurrentContainer();
                     }
 
                     return Task.CompletedTask;
@@ -1417,6 +1627,13 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             }
         }
 
+        private bool IsDevToolsEnabledForCurrentContainer()
+        {
+            var containerId = _owner?.ContainerId ?? SettingsManager.Instance.ActiveContainerId;
+            return SettingsManager.Instance.IsF12DevToolsEnabled
+                && SettingsManager.Instance.IsContainerDevToolsEnabled(containerId);
+        }
+
         private void ApplyHostedSetting(string? key, string? value)
         {
             if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(value))
@@ -1426,28 +1643,6 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
 
             var containerId = _owner?.ContainerId ?? SettingsManager.Instance.ActiveContainerId;
 
-            if (key == "theme")
-            {
-                var appTheme = value switch
-                {
-                    "light" => "Light",
-                    "dark" => "Dark",
-                    _ => "System"
-                };
-
-                SettingsManager.Instance.SetContainerAppTheme(containerId, appTheme);
-                AppThemeManager.CurrentTheme = appTheme switch
-                {
-                    "Light" => ElementTheme.Light,
-                    "Dark" => ElementTheme.Dark,
-                    _ => ElementTheme.Default
-                };
-
-                AppThemeManager.ApplyTheme();
-                _ = ApplyTransparentBackgroundAsync();
-                return;
-            }
-
             if (key == "material")
             {
                 var appMaterial = value.Equals("acrylic", StringComparison.OrdinalIgnoreCase)
@@ -1455,11 +1650,7 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
                     : "Mica";
 
                 SettingsManager.Instance.SetContainerAppMaterial(containerId, appMaterial);
-                AppThemeManager.CurrentMaterial = appMaterial == "Acrylic"
-                    ? BackgroundMaterial.Acrylic
-                    : BackgroundMaterial.Mica;
-
-                AppThemeManager.ApplyMaterial();
+                _owner?.ApplyCurrentContainerTheme();
             }
         }
 
@@ -1499,6 +1690,7 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             await UpdateDocumentInfoAsync();
             await DetectHostTitleBarFromIndexAsync();
             await DetectHostTitleBarAsync();
+            await RefreshHostTitleBarExclusionsAsync();
             SetHostedWindowActive(_owner?.IsWindowActive ?? true);
         }
 
@@ -1855,6 +2047,19 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             });
         }
 
+        private async Task RefreshHostTitleBarExclusionsAsync()
+        {
+            await RunOnUiThreadAsync(async () =>
+            {
+                if (RootWebView.CoreWebView2 == null)
+                {
+                    return;
+                }
+
+                await RootWebView.CoreWebView2.ExecuteScriptAsync("window.__WINUI_ON_WEB_REFRESH_TITLEBAR_EXCLUSIONS__&&window.__WINUI_ON_WEB_REFRESH_TITLEBAR_EXCLUSIONS__();");
+            });
+        }
+
         private async Task ApplyTransparentBackgroundAsync()
         {
             await RunOnUiThreadAsync(async () =>
@@ -1865,10 +2070,15 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
                 }
 
                 var script = GetTransparentWebViewScript();
-                if (!_transparentScriptRegistered)
+                if (!string.Equals(_transparentScript, script, StringComparison.Ordinal))
                 {
-                    await RootWebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(script);
-                    _transparentScriptRegistered = true;
+                    if (!string.IsNullOrWhiteSpace(_transparentScriptId))
+                    {
+                        RootWebView.CoreWebView2.RemoveScriptToExecuteOnDocumentCreated(_transparentScriptId);
+                    }
+
+                    _transparentScriptId = await RootWebView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(script);
+                    _transparentScript = script;
                 }
 
                 await RootWebView.CoreWebView2.ExecuteScriptAsync(script);
@@ -1904,6 +2114,7 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
         private string GetTransparentWebViewScript()
         {
             var css = new StringBuilder();
+            css.Append("html.winui-webview-host,html.winui-webview-host *{scrollbar-width:thin;}");
             string currentHost = "";
             if (Uri.TryCreate(RootWebView?.Source?.AbsoluteUri, UriKind.Absolute, out var currentUri))
             {
@@ -1927,9 +2138,7 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             }
 
             var cssJson = ToJavaScriptStringLiteral(css.ToString());
-            var themeClass = AppThemeManager.GetIsDarkTheme() ? "theme-dark" : "theme-light";
-            var themeClassJson = ToJavaScriptStringLiteral(themeClass);
-            return $@"(()=>{{window.__WINUI_ON_WEB_UWP_APP__=true;const root=document.documentElement;if(root){{root.classList.add('winui-webview-host');root.classList.remove('theme-dark','theme-light');root.classList.add({themeClassJson});}}const id='winui-on-web-transparent-background';let style=document.getElementById(id);if(!style){{style=document.createElement('style');style.id=id;(document.head||root||document.documentElement).appendChild(style);}}style.textContent={cssJson};}})()";
+            return $@"(()=>{{window.__WINUI_ON_WEB_UWP_APP__=true;const root=document.documentElement;if(root){{root.classList.add('winui-webview-host');}}const id='winui-on-web-transparent-background';let style=document.getElementById(id);if(!style){{style=document.createElement('style');style.id=id;(document.head||root||document.documentElement).appendChild(style);}}style.textContent={cssJson};}})()";
         }
 
         private static string ToJavaScriptStringLiteral(string value)

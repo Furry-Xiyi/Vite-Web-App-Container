@@ -47,7 +47,7 @@
 
                                                     <TextBox x:Name="ContainerNameBox"
                                                              x:Uid="ContainerNameBox"
-                                                             Text="{x:Bind DisplayName, Mode=OneWay}"
+                                                             Text="{x:Bind EditDisplayName, Mode=OneWay}"
                                                              TextChanged="ContainerTextBox_TextChanged"/>
                                                     <TextBox x:Name="ContainerUrlBox"
                                                              Grid.Row="1"

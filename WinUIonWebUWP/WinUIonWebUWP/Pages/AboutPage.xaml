@@ -355,19 +355,6 @@
                         </controls:SettingsExpander.HeaderIcon>
                         <controls:SettingsExpander.ItemsHeader>
                             <StackPanel Spacing="0">
-                                <controls:SettingsCard x:Uid="WebThemeIntegrationCard"
-                                                       HorizontalAlignment="Stretch"
-                                                       HorizontalContentAlignment="Stretch">
-                                    <TextBox x:Uid="WebThemeIntegrationScriptBox"
-                                             IsReadOnly="True"
-                                             AcceptsReturn="True"
-                                             TextWrapping="NoWrap"
-                                             FontFamily="Consolas"
-                                             FontSize="12"
-                                             MinHeight="128"
-                                             HorizontalAlignment="Stretch"/>
-                                </controls:SettingsCard>
-
                                 <controls:SettingsCard x:Uid="WebMaterialIntegrationCard"
                                                        HorizontalAlignment="Stretch"
                                                        HorizontalContentAlignment="Stretch">
