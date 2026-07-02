@@ -12,6 +12,8 @@ using Windows.Storage;
 using Windows.UI.StartScreen;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Media;
+using Windows.UI.Xaml.Media.Imaging;
 
 namespace WinUIonWebUWP.Pages
 {
@@ -27,8 +29,14 @@ namespace WinUIonWebUWP.Pages
             this.Loaded += ContainerManagementPage_Loaded;
         }
 
-        private void ContainerManagementPage_Loaded(object sender, RoutedEventArgs e)
+        private async void ContainerManagementPage_Loaded(object sender, RoutedEventArgs e)
         {
+            var mainPage = MainPage.Current;
+            if (mainPage?.GetContainerPageForSettings() != null)
+            {
+                await mainPage.RefreshCurrentContainerIconAsync();
+            }
+
             RefreshContainers();
         }
 
@@ -71,10 +79,11 @@ namespace WinUIonWebUWP.Pages
 
         private async void RefreshContainerIconButton_Click(object sender, RoutedEventArgs e)
         {
+            var mainPage = MainPage.Current;
             if (GetContainerId(sender) is string containerId
-                && MainPage.Current?.ContainerId == containerId)
+                && mainPage?.ContainerId == containerId)
             {
-                await MainPage.Current.RefreshCurrentContainerIconAsync();
+                await mainPage.RefreshCurrentContainerIconAsync();
                 RefreshContainers();
             }
         }
@@ -148,28 +157,39 @@ namespace WinUIonWebUWP.Pages
             await Task.CompletedTask;
         }
 
-        private async void UnpinContainerButton_Click(object sender, RoutedEventArgs e)
+        private async void ToggleContainerPinButton_Click(object sender, RoutedEventArgs e)
         {
-            if (GetContainerId(sender) is string containerId && SecondaryTile.Exists(containerId))
+            if (GetContainerId(sender) is not string containerId)
             {
-                var tile = new SecondaryTile(containerId);
-                try
-                {
-                    await tile.RequestDeleteAsync();
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Containers] Unpin failed: {ex.Message}");
-                }
+                return;
             }
+
+            if (SecondaryTile.Exists(containerId))
+            {
+                await UnpinContainerFromStartAsync(containerId);
+            }
+            else if (MainPage.Current is MainPage mainPage)
+            {
+                await mainPage.PinExistingContainerToStartAsync(containerId);
+            }
+
+            RefreshContainers();
         }
 
-        private void DeleteContainerButton_Click(object sender, RoutedEventArgs e)
+        private async void DeleteContainerButton_Click(object sender, RoutedEventArgs e)
         {
             if (GetContainerId(sender) is string containerId
-                && SettingsManager.Instance.DeleteContainer(containerId))
+                && !SettingsManager.Instance.IsDefaultContainer(containerId))
             {
-                RefreshContainers();
+                if (!await UnpinContainerFromStartAsync(containerId))
+                {
+                    return;
+                }
+
+                if (SettingsManager.Instance.DeleteContainer(containerId))
+                {
+                    RefreshContainers();
+                }
             }
         }
 
@@ -208,6 +228,26 @@ namespace WinUIonWebUWP.Pages
                 ? containerId
                 : null;
         }
+
+        private static async Task<bool> UnpinContainerFromStartAsync(string containerId)
+        {
+            if (!SecondaryTile.Exists(containerId))
+            {
+                return true;
+            }
+
+            var tile = new SecondaryTile(containerId);
+            try
+            {
+                await tile.RequestDeleteAsync();
+                return !SecondaryTile.Exists(containerId);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Containers] Unpin failed: {ex.Message}");
+                return false;
+            }
+        }
     }
 
     public sealed class ContainerItemViewModel : INotifyPropertyChanged
@@ -221,8 +261,10 @@ namespace WinUIonWebUWP.Pages
             EditHomeUrl = HomeUrl;
             CanDelete = !SettingsManager.Instance.IsDefaultContainer(Id);
             IsCurrentContainer = string.Equals(Id, currentContainerId, StringComparison.OrdinalIgnoreCase);
+            IsPinned = SecondaryTile.Exists(Id);
             OpenVisibility = IsCurrentContainer ? Visibility.Collapsed : Visibility.Visible;
             IconUri = SettingsManager.Instance.GetContainerIconUri(Id);
+            IconSource = new BitmapImage(IconUri);
             WebViewRuntimeVersion = GetWebViewRuntimeVersion();
             DiagnosticCurrentUrl = IsCurrentContainer
                 ? MainPage.Current?.GetContainerPageForSettings()?.CurrentUrl ?? HomeUrl
@@ -245,8 +287,14 @@ namespace WinUIonWebUWP.Pages
         public string EditHomeUrl { get; set; }
         public bool CanDelete { get; }
         public bool IsCurrentContainer { get; }
+        public bool IsPinned { get; }
         public Visibility OpenVisibility { get; }
+        public Visibility PinnedBadgeVisibility => IsPinned ? Visibility.Visible : Visibility.Collapsed;
+        public string PinButtonToolTip => IsPinned
+            ? GetResourceString("ContainerUnpinButtonToolTip")
+            : GetResourceString("ContainerPinButtonToolTip");
         public Uri IconUri { get; }
+        public ImageSource IconSource { get; }
 
         public string WebViewRuntimeVersion { get; }
         public string DiagnosticCurrentUrl { get; }

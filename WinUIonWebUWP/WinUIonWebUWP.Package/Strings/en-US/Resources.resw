@@ -641,6 +641,12 @@ setWinUIHostMaterial('acrylic');</value>
   <data name="ContainerUnpinButton.ToolTipService.ToolTip" xml:space="preserve">
     <value>Unpin from Start</value>
   </data>
+  <data name="ContainerPinButtonToolTip" xml:space="preserve">
+    <value>Pin to Start</value>
+  </data>
+  <data name="ContainerUnpinButtonToolTip" xml:space="preserve">
+    <value>Unpin from Start</value>
+  </data>
   <data name="ContainerDeleteButton.ToolTipService.ToolTip" xml:space="preserve">
     <value>Delete container</value>
   </data>

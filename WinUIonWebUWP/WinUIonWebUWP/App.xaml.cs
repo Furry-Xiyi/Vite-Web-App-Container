@@ -663,6 +663,11 @@ namespace WinUIonWebUWP
                 : CreateLocalUri(iconPath);
         }
 
+        public string GetContainerIconPath(string containerId)
+        {
+            return GetContainerOrDefault(containerId).IconPath?.Trim() ?? "";
+        }
+
         public string GetContainerHomeUrl(string containerId)
         {
             var homeUrl = GetContainerOrDefault(containerId).HomeUrl;

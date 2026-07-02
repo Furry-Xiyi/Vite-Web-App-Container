@@ -184,20 +184,43 @@ const getAppRegion=(element)=>{
   const style=getComputedStyle(element);
   return (style.getPropertyValue('app-region')||style.getPropertyValue('-webkit-app-region')||'').trim().toLowerCase();
 };
+const isLikelyInteractiveElement=(element)=>{
+  if(element.matches(interactiveSelector))return true;
+  const style=getComputedStyle(element);
+  return style.cursor==='pointer'||typeof element.onclick==='function'||element.hasAttribute('onclick');
+};
 const isInteractiveElement=(element)=>{
   if(!element||element.disabled)return false;
-  if(getAppRegion(element)==='no-drag')return true;
   if(element.matches('input[type=""hidden""],[tabindex=""-1""]'))return false;
   if(element.hasAttribute('tabindex')){
     const tabIndex=Number(element.getAttribute('tabindex'));
     if(Number.isFinite(tabIndex)&&tabIndex<0)return false;
   }
-  return true;
+  const explicitNoDrag=getAppRegion(element)==='no-drag';
+  if(explicitNoDrag&&!isLikelyInteractiveElement(element))return false;
+  return explicitNoDrag||element.matches(interactiveSelector);
 };
 const titleBarRegionClass='winui-titlebar-region';
 const titleBarNoDragClass='winui-titlebar-no-drag';
 let markedTitleBarElement=null;
 let markedNoDragElements=[];
+const getTitleBarInteractionRects=()=>{
+  const overlayRect=overlay.getTitlebarAreaRect();
+  const fullHeight=Math.max(32,clampNumber(hostGeometry.height,32)||32);
+  const topButtonHeight=Math.min(32,fullHeight);
+  const topRight=Math.max(overlayRect.left,Math.min(window.innerWidth,overlayRect.right));
+  const rects=[];
+  if(topRight>overlayRect.left&&topButtonHeight>0){
+    rects.push({left:overlayRect.left,top:0,right:topRight,bottom:topButtonHeight});
+  }
+  if(fullHeight>topButtonHeight){
+    rects.push({left:0,top:topButtonHeight,right:window.innerWidth,bottom:fullHeight});
+  }
+  return rects;
+};
+const intersectsAnyTitleBarInteractionRect=(clientRect)=>{
+  return getTitleBarInteractionRects().some((titleRect)=>clientRect.left<titleRect.right&&clientRect.right>titleRect.left&&clientRect.top<titleRect.bottom&&clientRect.bottom>titleRect.top);
+};
 const clearMarkedTitleBarRegions=()=>{
   if(markedTitleBarElement)markedTitleBarElement.classList.remove(titleBarRegionClass);
   markedTitleBarElement=null;
@@ -214,14 +237,13 @@ const markTitleBarRegions=(titleBar)=>{
   }
   markedTitleBarElement=titleBar;
   if(!titleBar.classList.contains(titleBarRegionClass))titleBar.classList.add(titleBarRegionClass);
-  const titleRect=overlay.getTitlebarAreaRect();
   const elements=Array.from(new Set(Array.from(titleBar.querySelectorAll(interactiveSelector)).concat(Array.from(document.querySelectorAll('*')).filter((element)=>getAppRegion(element)==='no-drag'))));
   const nextNoDragElements=[];
   for(const element of elements){
     if(!isInteractiveElement(element))continue;
     const style=getComputedStyle(element);
     if(style.display==='none'||style.visibility==='hidden'||style.pointerEvents==='none')continue;
-    const intersectsTitleBar=Array.from(element.getClientRects()).some((clientRect)=>clientRect.left<titleRect.right&&clientRect.right>titleRect.left&&clientRect.top<titleRect.bottom&&clientRect.bottom>titleRect.top);
+    const intersectsTitleBar=Array.from(element.getClientRects()).some(intersectsAnyTitleBarInteractionRect);
     if(!intersectsTitleBar)continue;
     nextNoDragElements.push(element);
     if(nextNoDragElements.length>=64)break;
@@ -236,7 +258,7 @@ const markTitleBarRegions=(titleBar)=>{
   markedNoDragElements=nextNoDragElements;
 };
 const collectInteractiveRects=()=>{
-  const titleRect=overlay.getTitlebarAreaRect();
+  const titleRects=getTitleBarInteractionRects();
   const elements=Array.from(new Set(Array.from(document.querySelectorAll(interactiveSelector)).concat(Array.from(document.querySelectorAll('*')).filter((element)=>getAppRegion(element)==='no-drag'))));
   const rects=[];
   for(const element of elements){
@@ -244,14 +266,16 @@ const collectInteractiveRects=()=>{
     const style=getComputedStyle(element);
     if(style.display==='none'||style.visibility==='hidden'||style.pointerEvents==='none')continue;
     for(const clientRect of Array.from(element.getClientRects())){
-      const left=Math.max(titleRect.left,clientRect.left);
-      const top=Math.max(titleRect.top,clientRect.top);
-      const right=Math.min(titleRect.right,clientRect.right);
-      const bottom=Math.min(titleRect.bottom,clientRect.bottom);
-      if(right-left>=2&&bottom-top>=2){
-        rects.push({left,top,width:right-left,height:bottom-top});
-        break;
+      for(const titleRect of titleRects){
+        const left=Math.max(titleRect.left,clientRect.left);
+        const top=Math.max(titleRect.top,clientRect.top);
+        const right=Math.min(titleRect.right,clientRect.right);
+        const bottom=Math.min(titleRect.bottom,clientRect.bottom);
+        if(right-left>=2&&bottom-top>=2){
+          rects.push({left,top,width:right-left,height:bottom-top});
+        }
       }
+      if(rects.length>=32)break;
     }
     if(rects.length>=32)break;
   }
@@ -535,8 +559,6 @@ const observeTitleBarLayoutTargets=(titleBar)=>{
   if(observedTitleBarElement===titleBar)return;
   observedTitleBarElement=titleBar||null;
   titleBarResizeObserver.disconnect();
-  if(document.documentElement)titleBarResizeObserver.observe(document.documentElement);
-  if(document.body)titleBarResizeObserver.observe(document.body);
   if(titleBar)titleBarResizeObserver.observe(titleBar);
 };
 window.__WINUI_ON_WEB_SET_TITLEBAR_GEOMETRY__=(geometry)=>{
@@ -671,7 +693,7 @@ const startDetecting=()=>{
   setTimeout(scheduleTitleBarLayoutRefresh,0);
   setTimeout(scheduleTitleBarLayoutRefresh,250);
   setTimeout(scheduleTitleBarLayoutRefresh,500);
-  setInterval(scheduleTitleBarLayoutRefresh,250);
+  setInterval(scheduleTitleBarLayoutRefresh,500);
 };
 if(document.readyState==='loading'){
   document.addEventListener('DOMContentLoaded',startDetecting,{once:true});
@@ -973,6 +995,7 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
                 return;
             }
 
+            ResetHostTitleBarForNavigation();
             _owner?.SetHostedPageLoading(url);
             RootWebView.Source = new Uri(url);
         }
@@ -1080,13 +1103,21 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             _lastHttpStatusCode = 0;
             LoadingOverlay.Visibility = Visibility.Visible;
             NavigationErrorOverlay.Visibility = Visibility.Collapsed;
+            ResetHostTitleBarForNavigation();
             _owner?.SetHostedPageLoading(args.Uri);
-            _owner?.SetHostedTitleBarInteractiveRects(Array.Empty<MainPage.TitleBarInteractiveRect>());
         }
 
-        private void CoreWebView2_ContentLoading(CoreWebView2 sender, CoreWebView2ContentLoadingEventArgs args)
+        private void ResetHostTitleBarForNavigation()
+        {
+            _owner?.SetHostedTitleBarInteractiveRects(Array.Empty<MainPage.TitleBarInteractiveRect>());
+            _owner?.SetHostedTitleBarVisible(false);
+        }
+
+        private async void CoreWebView2_ContentLoading(CoreWebView2 sender, CoreWebView2ContentLoadingEventArgs args)
         {
             LoadingOverlay.Visibility = Visibility.Collapsed;
+            await RegisterHostTitleBarScriptAsync();
+            await DetectHostTitleBarAsync();
         }
 
         private async void CoreWebView2_NewWindowRequested(CoreWebView2 sender, CoreWebView2NewWindowRequestedEventArgs args)

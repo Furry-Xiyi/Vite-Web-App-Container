@@ -45,7 +45,8 @@
                     BorderThickness="0">
                 <Grid Width="24"
                       Height="24">
-                    <FontIcon FontSize="14"
+                    <FontIcon x:Name="DownloadTitleBarGlyph"
+                              FontSize="14"
                               Glyph="&#xE896;"
                               HorizontalAlignment="Center"
                               VerticalAlignment="Center"/>
@@ -344,7 +345,8 @@
                     VerticalAlignment="Top"
                     Background="Transparent"
                     BorderThickness="0">
-                <FontIcon FontSize="14"
+                <FontIcon x:Name="MoreTitleBarGlyph"
+                          FontSize="14"
                           Glyph="&#xE712;"/>
                 <Button.Flyout>
                     <Flyout x:Name="MoreFlyout"

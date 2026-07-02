@@ -329,12 +329,16 @@ namespace WinUIonWebUWP
                 var brush = new SolidColorBrush(color.Value);
                 MoreButton.Foreground = brush;
                 DownloadTitleBarButton.Foreground = brush;
+                MoreTitleBarGlyph.Foreground = brush;
+                DownloadTitleBarGlyph.Foreground = brush;
                 DownloadTitleBarProgressRing.Foreground = brush;
             }
             else
             {
                 MoreButton.ClearValue(Control.ForegroundProperty);
                 DownloadTitleBarButton.ClearValue(Control.ForegroundProperty);
+                MoreTitleBarGlyph.ClearValue(IconElement.ForegroundProperty);
+                DownloadTitleBarGlyph.ClearValue(IconElement.ForegroundProperty);
                 DownloadTitleBarProgressRing.ClearValue(Control.ForegroundProperty);
             }
         }
@@ -816,7 +820,14 @@ namespace WinUIonWebUWP
         {
             if (_isHostedTitleBarVisible == isVisible)
             {
-                UpdateHostedTitleBarGeometry();
+                if (isVisible)
+                {
+                    UpdateTitleBarButtonInset(CoreApplication.GetCurrentView().TitleBar);
+                }
+                else
+                {
+                    UpdateHostedTitleBarGeometry();
+                }
                 return;
             }
 
@@ -843,7 +854,7 @@ namespace WinUIonWebUWP
 
             if (_isHostedPageLoaded)
             {
-                _ = PrepareHostedTileIconsAsync();
+                _ = RefreshCurrentContainerIconAsync();
             }
 
             if (_isSettingsHostOpen)
@@ -2551,11 +2562,67 @@ namespace WinUIonWebUWP
 
         public async Task RefreshCurrentContainerIconAsync()
         {
+            if (SettingsManager.Instance.IsDefaultContainer(_containerId))
+            {
+                return;
+            }
+
             var icons = await PrepareHostedTileIconsAsync();
             if (!string.IsNullOrWhiteSpace(icons.Square150Path))
             {
                 SettingsManager.Instance.UpdateContainerIcon(_containerId, icons.Square150Path);
                 ImgAppIcon.Source = new BitmapImage(SettingsManager.Instance.GetContainerIconUri(_containerId));
+            }
+        }
+
+        public async Task<bool> PinExistingContainerToStartAsync(string containerId)
+        {
+            if (!SettingsManager.Instance.HasContainer(containerId)
+                || SettingsManager.Instance.IsDefaultContainer(containerId))
+            {
+                return false;
+            }
+
+            if (string.Equals(_containerId, containerId, StringComparison.OrdinalIgnoreCase))
+            {
+                await RefreshCurrentContainerIconAsync();
+            }
+
+            var displayName = SettingsManager.Instance.GetContainerSiteName(containerId);
+            var iconPath = SettingsManager.Instance.GetContainerIconPath(containerId);
+            var tileIcons = string.IsNullOrWhiteSpace(iconPath)
+                ? TileIconSet.Empty
+                : new TileIconSet(iconPath, "", "", "", "");
+            var logoUri = string.IsNullOrWhiteSpace(iconPath)
+                ? GetDefaultTileLogoUri()
+                : CreateLocalUri(iconPath);
+
+            SecondaryTile tile;
+            try
+            {
+                tile = CreateSecondaryTile(containerId, displayName, logoUri);
+            }
+            catch (ArgumentException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Tile] Create managed secondary tile failed: {ex.Message}");
+                tile = CreateSecondaryTile(containerId, displayName, GetDefaultTileLogoUri());
+                tileIcons = TileIconSet.Empty;
+            }
+
+            ApplyTileVisualElements(tile, tileIcons);
+            tile.VisualElements.ShowNameOnSquare150x150Logo = true;
+            tile.VisualElements.ShowNameOnWide310x150Logo = true;
+
+            try
+            {
+                return SecondaryTile.Exists(containerId)
+                    ? await tile.UpdateAsync()
+                    : await tile.RequestCreateAsync();
+            }
+            catch (System.Runtime.InteropServices.COMException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Tile] Managed secondary tile request failed: 0x{ex.HResult:X8} {ex.Message}");
+                return SecondaryTile.Exists(containerId);
             }
         }
 
