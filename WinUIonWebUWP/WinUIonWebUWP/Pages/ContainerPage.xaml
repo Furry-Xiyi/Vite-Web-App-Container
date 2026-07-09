@@ -10,9 +10,9 @@
               Visibility="Collapsed">
             <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="0.45*"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="1.55*"/>
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="1"
@@ -35,10 +35,19 @@
                         <AutoSuggestBox x:Name="LauncherUrlTextBox"
                                         x:Uid="LauncherUrlTextBox"
                                         MinHeight="36"
+                                        MaxSuggestionListHeight="220"
                                         GotFocus="LauncherUrlTextBox_GotFocus"
                                         TextChanged="LauncherUrlTextBox_TextChanged"
                                         SuggestionChosen="LauncherUrlTextBox_SuggestionChosen"
-                                        QuerySubmitted="LauncherUrlTextBox_QuerySubmitted"/>
+                                        QuerySubmitted="LauncherUrlTextBox_QuerySubmitted">
+                            <AutoSuggestBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding}"
+                                               MinWidth="320"
+                                               TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </AutoSuggestBox.ItemTemplate>
+                        </AutoSuggestBox>
 
                         <Button x:Name="LauncherAddButton"
                                 x:Uid="LauncherAddButton"

@@ -85,7 +85,7 @@ namespace WinUIonWebUWP.Pages
                 MainPage.Current.RefreshContainerIdentity();
             }
 
-            RefreshContainers();
+            item.RefreshFromSettings(homeUrl);
             await Task.CompletedTask;
         }
 
@@ -348,10 +348,6 @@ namespace WinUIonWebUWP.Pages
         public ContainerItemViewModel(WebContainer container, string? currentContainerId)
         {
             Id = container.Id;
-            DisplayName = SettingsManager.Instance.GetContainerSiteName(Id);
-            HomeUrl = container.HomeUrl;
-            EditDisplayName = SettingsManager.Instance.GetContainerDisplayName(Id);
-            EditHomeUrl = HomeUrl;
             CanDelete = !SettingsManager.Instance.IsDefaultContainer(Id);
             IsCurrentContainer = string.Equals(Id, currentContainerId, StringComparison.OrdinalIgnoreCase);
             IsPinned = SecondaryTile.Exists(Id);
@@ -359,25 +355,41 @@ namespace WinUIonWebUWP.Pages
             IconUri = SettingsManager.Instance.GetContainerIconUri(Id);
             IconSource = new BitmapImage(IconUri);
             WebViewRuntimeVersion = GetWebViewRuntimeVersion();
-            DiagnosticCurrentUrl = IsCurrentContainer
-                ? MainPage.Current?.GetContainerPageForSettings()?.CurrentUrl ?? HomeUrl
-                : HomeUrl;
-            DiagnosticOrigin = GetOrigin(DiagnosticCurrentUrl);
             ProfilePath = SettingsManager.Instance.GetContainerWebViewDataFolder(Id);
-
-            var manifestName = SettingsManager.Instance.GetContainerManifestName(Id);
-            ManifestSummary = string.IsNullOrWhiteSpace(manifestName)
-                ? GetResourceString("ContainerDiagnosticManifestMissing")
-                : manifestName;
+            RefreshFromSettings(container.HomeUrl);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public string Id { get; }
-        public string DisplayName { get; }
-        public string HomeUrl { get; }
-        public string EditDisplayName { get; set; }
-        public string EditHomeUrl { get; set; }
+        private string _displayName = "";
+        public string DisplayName
+        {
+            get => _displayName;
+            private set => SetProperty(ref _displayName, value, nameof(DisplayName));
+        }
+
+        private string _homeUrl = "";
+        public string HomeUrl
+        {
+            get => _homeUrl;
+            private set => SetProperty(ref _homeUrl, value, nameof(HomeUrl));
+        }
+
+        private string _editDisplayName = "";
+        public string EditDisplayName
+        {
+            get => _editDisplayName;
+            set => SetProperty(ref _editDisplayName, value, nameof(EditDisplayName));
+        }
+
+        private string _editHomeUrl = "";
+        public string EditHomeUrl
+        {
+            get => _editHomeUrl;
+            set => SetProperty(ref _editHomeUrl, value, nameof(EditHomeUrl));
+        }
+
         public bool CanDelete { get; }
         public bool IsCurrentContainer { get; }
         public bool IsPinned { get; }
@@ -390,10 +402,44 @@ namespace WinUIonWebUWP.Pages
         public ImageSource IconSource { get; }
 
         public string WebViewRuntimeVersion { get; }
-        public string DiagnosticCurrentUrl { get; }
-        public string DiagnosticOrigin { get; }
+        private string _diagnosticCurrentUrl = "";
+        public string DiagnosticCurrentUrl
+        {
+            get => _diagnosticCurrentUrl;
+            private set => SetProperty(ref _diagnosticCurrentUrl, value, nameof(DiagnosticCurrentUrl));
+        }
+
+        private string _diagnosticOrigin = "";
+        public string DiagnosticOrigin
+        {
+            get => _diagnosticOrigin;
+            private set => SetProperty(ref _diagnosticOrigin, value, nameof(DiagnosticOrigin));
+        }
+
         public string ProfilePath { get; }
-        public string ManifestSummary { get; }
+        private string _manifestSummary = "";
+        public string ManifestSummary
+        {
+            get => _manifestSummary;
+            private set => SetProperty(ref _manifestSummary, value, nameof(ManifestSummary));
+        }
+
+        public void RefreshFromSettings(string homeUrl)
+        {
+            DisplayName = SettingsManager.Instance.GetContainerDisplayName(Id);
+            HomeUrl = homeUrl;
+            EditDisplayName = DisplayName;
+            EditHomeUrl = HomeUrl;
+            DiagnosticCurrentUrl = IsCurrentContainer
+                ? MainPage.Current?.GetContainerPageForSettings()?.CurrentUrl ?? HomeUrl
+                : HomeUrl;
+            DiagnosticOrigin = GetOrigin(DiagnosticCurrentUrl);
+
+            var manifestName = SettingsManager.Instance.GetContainerManifestName(Id);
+            ManifestSummary = string.IsNullOrWhiteSpace(manifestName)
+                ? GetResourceString("ContainerDiagnosticManifestMissing")
+                : manifestName;
+        }
 
         public string CreateDiagnosticsText()
         {
@@ -430,6 +476,17 @@ namespace WinUIonWebUWP.Pages
         private static string GetResourceString(string key)
         {
             return ResourceLoader.GetForCurrentView().GetString(key);
+        }
+
+        private void SetProperty<T>(ref T storage, T value, string propertyName)
+        {
+            if (Equals(storage, value))
+            {
+                return;
+            }
+
+            storage = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

@@ -1069,6 +1069,8 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             HideLauncherUrlError();
             LauncherUrlTextBox.Text = url;
             LauncherAddButton.IsEnabled = false;
+            SettingsManager.Instance.AddContainerHomeUrlHistory(_owner.ContainerId, url);
+            RefreshLauncherUrlSuggestions();
             try
             {
                 await _owner.OpenUrlInNewContainerAsync(url);
@@ -1093,9 +1095,18 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
         {
             var defaultUrl = GetResourceString("DefaultHomeUrl");
             _launcherUrlSuggestions.Clear();
-            if (!string.IsNullOrWhiteSpace(defaultUrl))
+            if (MainPage.IsSupportedUrl(defaultUrl))
             {
                 _launcherUrlSuggestions.Add(defaultUrl);
+            }
+
+            var containerId = _owner?.ContainerId ?? SettingsManager.Instance.PrimaryContainerId;
+            foreach (var url in SettingsManager.Instance.GetContainerHomeUrlHistory(containerId).Where(MainPage.IsSupportedUrl))
+            {
+                if (!_launcherUrlSuggestions.Any(item => string.Equals(item, url, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _launcherUrlSuggestions.Add(url);
+                }
             }
         }
 

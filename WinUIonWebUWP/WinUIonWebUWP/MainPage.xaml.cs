@@ -1502,7 +1502,7 @@ namespace WinUIonWebUWP
             }
         }
 
-        private static bool IsSupportedUrl(string? url)
+        public static bool IsSupportedUrl(string? url)
         {
             return Uri.TryCreate(url, UriKind.Absolute, out var uri)
                 && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == "edge")

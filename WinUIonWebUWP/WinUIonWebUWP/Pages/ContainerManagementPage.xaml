@@ -135,42 +135,52 @@
                                                     </Grid.ColumnDefinitions>
 
                                                     <TextBlock x:Uid="ContainerDiagnosticRuntimeLabel"
+                                                               IsTextSelectionEnabled="True"
                                                                FontWeight="SemiBold"/>
                                                     <TextBlock Grid.Column="1"
                                                                Text="{x:Bind WebViewRuntimeVersion, Mode=OneWay}"
+                                                               IsTextSelectionEnabled="True"
                                                                TextWrapping="Wrap"/>
 
                                                     <TextBlock Grid.Row="1"
                                                                x:Uid="ContainerDiagnosticUrlLabel"
+                                                               IsTextSelectionEnabled="True"
                                                                FontWeight="SemiBold"/>
                                                     <TextBlock Grid.Row="1"
                                                                Grid.Column="1"
                                                                Text="{x:Bind DiagnosticCurrentUrl, Mode=OneWay}"
+                                                               IsTextSelectionEnabled="True"
                                                                TextWrapping="Wrap"
                                                                TextTrimming="CharacterEllipsis"/>
 
                                                     <TextBlock Grid.Row="2"
                                                                x:Uid="ContainerDiagnosticOriginLabel"
+                                                               IsTextSelectionEnabled="True"
                                                                FontWeight="SemiBold"/>
                                                     <TextBlock Grid.Row="2"
                                                                Grid.Column="1"
                                                                Text="{x:Bind DiagnosticOrigin, Mode=OneWay}"
+                                                               IsTextSelectionEnabled="True"
                                                                TextWrapping="Wrap"/>
 
                                                     <TextBlock Grid.Row="3"
                                                                x:Uid="ContainerDiagnosticProfileLabel"
+                                                               IsTextSelectionEnabled="True"
                                                                FontWeight="SemiBold"/>
                                                     <TextBlock Grid.Row="3"
                                                                Grid.Column="1"
                                                                Text="{x:Bind ProfilePath, Mode=OneWay}"
+                                                               IsTextSelectionEnabled="True"
                                                                TextWrapping="Wrap"/>
 
                                                     <TextBlock Grid.Row="4"
                                                                x:Uid="ContainerDiagnosticManifestLabel"
+                                                               IsTextSelectionEnabled="True"
                                                                FontWeight="SemiBold"/>
                                                     <TextBlock Grid.Row="4"
                                                                Grid.Column="1"
                                                                Text="{x:Bind ManifestSummary, Mode=OneWay}"
+                                                               IsTextSelectionEnabled="True"
                                                                TextWrapping="Wrap"/>
 
                                                     <StackPanel Grid.Row="5"
