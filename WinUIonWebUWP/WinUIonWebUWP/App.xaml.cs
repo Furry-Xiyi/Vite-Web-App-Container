@@ -399,6 +399,8 @@ namespace WinUIonWebUWP
         private AppSettings _settings;
         private const string DefaultContainerId = "default";
 
+        public event EventHandler<ContainerIdentityChangedEventArgs>? ContainerIdentityChanged;
+
         private SettingsManager()
         {
             _settingsFilePath = Path.Combine(
@@ -598,10 +600,7 @@ namespace WinUIonWebUWP
         {
             get
             {
-                var name = CurrentContainer.DisplayName?.Trim();
-                return string.IsNullOrWhiteSpace(name)
-                    ? new ResourceLoader().GetString("AppDisplayName")
-                    : name;
+                return GetContainerSiteName(ActiveContainerId);
             }
         }
 
@@ -624,10 +623,15 @@ namespace WinUIonWebUWP
 
         public string GetContainerDisplayName(string containerId)
         {
+            return GetContainerSiteName(containerId);
+        }
+
+        public string GetContainerEditDisplayName(string containerId)
+        {
             var container = GetContainerOrDefault(containerId);
             var name = container.DisplayName?.Trim();
             return string.IsNullOrWhiteSpace(name)
-                ? new ResourceLoader().GetString("AppDisplayName")
+                ? GetContainerSiteName(containerId)
                 : name;
         }
 
@@ -713,12 +717,18 @@ namespace WinUIonWebUWP
         public bool IsContainerDevToolsEnabled(string containerId)
         {
             var container = GetContainerOrDefault(containerId);
-            return !container.HasDevToolsPreference || container.IsDevToolsEnabled;
+            return container.HasDevToolsPreference && container.IsDevToolsEnabled;
         }
 
         public IReadOnlyList<string> GetContainerHomeUrlHistory(string containerId)
         {
-            return GetContainerOrDefault(containerId).HomeUrlHistory.ToList();
+            var container = GetContainerOrDefault(containerId);
+            if (EnsureContainerHomeUrlHistoryInitialized(container))
+            {
+                SaveSettings();
+            }
+
+            return container.HomeUrlHistory.ToList();
         }
 
         public string GetContainerWebViewDataFolder(string containerId)
@@ -738,6 +748,7 @@ namespace WinUIonWebUWP
 
             container.HomeUrl = homeUrl;
             SaveSettings();
+            NotifyContainerIdentityChanged(containerId);
         }
 
         public void SetContainerAppTheme(string containerId, string appTheme)
@@ -778,6 +789,7 @@ namespace WinUIonWebUWP
 
             container.ManifestName = name;
             SaveSettings();
+            NotifyContainerIdentityChanged(containerId);
         }
 
         public void SetContainerDocumentTitle(string containerId, string? documentTitle)
@@ -796,6 +808,7 @@ namespace WinUIonWebUWP
 
             container.DocumentTitle = title;
             SaveSettings();
+            NotifyContainerIdentityChanged(containerId);
         }
 
         public void SetContainerHostedTitleBarHeight(string containerId, double titleBarHeight)
@@ -827,6 +840,7 @@ namespace WinUIonWebUWP
             container.HomeUrlHistory.RemoveAll(item => string.Equals(item, homeUrl, StringComparison.OrdinalIgnoreCase));
             container.HomeUrlHistory.Insert(0, homeUrl);
             SaveSettings();
+            NotifyContainerIdentityChanged(containerId);
         }
 
         public void AddContainerHomeUrlHistory(string containerId, string url)
@@ -836,7 +850,9 @@ namespace WinUIonWebUWP
                 return;
             }
 
-            var history = GetContainerOrDefault(containerId).HomeUrlHistory;
+            var container = GetContainerOrDefault(containerId);
+            container.HasInitializedHomeUrlHistory = true;
+            var history = container.HomeUrlHistory;
             history.RemoveAll(item => string.Equals(item, url, StringComparison.OrdinalIgnoreCase));
             history.Insert(0, url);
             SaveSettings();
@@ -844,7 +860,9 @@ namespace WinUIonWebUWP
 
         public void RemoveContainerHomeUrlHistory(string containerId, string url)
         {
-            GetContainerOrDefault(containerId).HomeUrlHistory.RemoveAll(item => string.Equals(item, url, StringComparison.OrdinalIgnoreCase));
+            var container = GetContainerOrDefault(containerId);
+            container.HasInitializedHomeUrlHistory = true;
+            container.HomeUrlHistory.RemoveAll(item => string.Equals(item, url, StringComparison.OrdinalIgnoreCase));
             SaveSettings();
         }
 
@@ -927,6 +945,7 @@ namespace WinUIonWebUWP
             container.HomeUrlHistory.RemoveAll(item => string.Equals(item, homeUrl, StringComparison.OrdinalIgnoreCase));
             container.HomeUrlHistory.Insert(0, homeUrl);
             SaveSettings();
+            NotifyContainerIdentityChanged(container.Id);
             return container;
         }
 
@@ -1104,6 +1123,16 @@ namespace WinUIonWebUWP
             }
         }
 
+        private void NotifyContainerIdentityChanged(string containerId)
+        {
+            if (string.IsNullOrWhiteSpace(containerId))
+            {
+                return;
+            }
+
+            ContainerIdentityChanged?.Invoke(this, new ContainerIdentityChangedEventArgs(containerId));
+        }
+
         private AppSettings LoadSettingsFromFile()
         {
             try
@@ -1166,6 +1195,24 @@ namespace WinUIonWebUWP
         private void EnsureDownloadHistory()
         {
             _settings.DownloadHistory ??= new List<DownloadHistoryEntry>();
+        }
+
+        private static bool EnsureContainerHomeUrlHistoryInitialized(WebContainer container)
+        {
+            if (container.HasInitializedHomeUrlHistory)
+            {
+                return false;
+            }
+
+            var defaultUrl = new ResourceLoader().GetString("DefaultHomeUrl");
+            if (!string.IsNullOrWhiteSpace(defaultUrl)
+                && !container.HomeUrlHistory.Any(item => string.Equals(item, defaultUrl, StringComparison.OrdinalIgnoreCase)))
+            {
+                container.HomeUrlHistory.Insert(0, defaultUrl);
+            }
+
+            container.HasInitializedHomeUrlHistory = true;
+            return true;
         }
 
         private static void EnsureContainers(AppSettings settings)
@@ -1363,6 +1410,16 @@ namespace WinUIonWebUWP
         public bool UsePerSiteTransparentCss { get; set; } = false;
     }
 
+    public sealed class ContainerIdentityChangedEventArgs : EventArgs
+    {
+        public ContainerIdentityChangedEventArgs(string containerId)
+        {
+            ContainerId = containerId;
+        }
+
+        public string ContainerId { get; }
+    }
+
     public sealed class WebContainer
     {
         public string Id { get; set; } = "";
@@ -1372,6 +1429,7 @@ namespace WinUIonWebUWP
         public string HomeUrl { get; set; } = "";
         public string IconPath { get; set; } = "";
         public List<string> HomeUrlHistory { get; set; } = new List<string>();
+        public bool HasInitializedHomeUrlHistory { get; set; } = false;
         public string AppTheme { get; set; } = "";
         public string AppMaterial { get; set; } = "";
         public bool IsDevToolsEnabled { get; set; } = false;

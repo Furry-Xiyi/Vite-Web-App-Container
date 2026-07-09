@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using Windows.ApplicationModel.Resources;
 using Windows.UI.Xaml.Controls;
 
@@ -10,6 +11,8 @@ namespace WinUIonWebUWP.Pages
         private readonly ResourceLoader _loader = new ResourceLoader();
         private string _origin = "";
         private bool _isLoading = true;
+        private int _loadVersion;
+        private bool _isUnloaded;
 
         public ObservableCollection<SitePermissionViewModel> Permissions { get; } = new ObservableCollection<SitePermissionViewModel>();
 
@@ -17,31 +20,75 @@ namespace WinUIonWebUWP.Pages
         {
             this.InitializeComponent();
             this.Loaded += SitePermissionsPage_Loaded;
+            this.Unloaded += SitePermissionsPage_Unloaded;
         }
 
-        private void SitePermissionsPage_Loaded(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        private async void SitePermissionsPage_Loaded(object sender, Windows.UI.Xaml.RoutedEventArgs e)
         {
+            _isUnloaded = false;
+            var loadVersion = ++_loadVersion;
+            _isLoading = true;
             _origin = GetCurrentOrigin();
             OriginText.Text = string.Format(GetString("SitePermissionsOriginFormat"), _origin);
-            LoadPermissions();
-            _isLoading = false;
+            await YieldForPageLoadAsync();
+            if (!IsCurrentLoad(loadVersion))
+            {
+                return;
+            }
+
+            await LoadPermissionsAsync(loadVersion);
+            if (IsCurrentLoad(loadVersion))
+            {
+                _isLoading = false;
+            }
         }
 
-        private void LoadPermissions()
+        private void SitePermissionsPage_Unloaded(object sender, Windows.UI.Xaml.RoutedEventArgs e)
+        {
+            _isUnloaded = true;
+            _loadVersion++;
+        }
+
+        private async Task LoadPermissionsAsync(int loadVersion)
         {
             Permissions.Clear();
-            AddPermission("Microphone", "\uE720");
-            AddPermission("Camera", "\uE722");
-            AddPermission("Geolocation", "\uE707");
-            AddPermission("Notifications", "\uEC42");
-            AddPermission("OtherSensors", "\uE950");
-            AddPermission("ClipboardRead", "\uE77F");
-            AddPermission("MultipleAutomaticDownloads", "\uE896");
-            AddPermission("FileReadWrite", "\uE932");
-            AddPermission("Autoplay", "\uE768");
-            AddPermission("LocalFonts", "\uE8D2");
-            AddPermission("MidiSystemExclusiveMessages", "\uE8D6");
-            AddPermission("WindowManagement", "\uE737");
+            var permissions = new[]
+            {
+                ("Microphone", "\uE720"),
+                ("Camera", "\uE722"),
+                ("Geolocation", "\uE707"),
+                ("Notifications", "\uEC42"),
+                ("OtherSensors", "\uE950"),
+                ("ClipboardRead", "\uE77F"),
+                ("MultipleAutomaticDownloads", "\uE896"),
+                ("FileReadWrite", "\uE932"),
+                ("Autoplay", "\uE768"),
+                ("LocalFonts", "\uE8D2"),
+                ("MidiSystemExclusiveMessages", "\uE8D6"),
+                ("WindowManagement", "\uE737")
+            };
+
+            for (var index = 0; index < permissions.Length; index++)
+            {
+                if (!IsCurrentLoad(loadVersion))
+                {
+                    return;
+                }
+
+                AddPermission(permissions[index].Item1, permissions[index].Item2);
+                if ((index + 1) % 4 == 0)
+                {
+                    await YieldForPageLoadAsync();
+                }
+            }
+        }
+
+        private bool IsCurrentLoad(int loadVersion) =>
+            !_isUnloaded && loadVersion == _loadVersion;
+
+        private async Task YieldForPageLoadAsync()
+        {
+            await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Low, () => { });
         }
 
         private void AddPermission(string permissionKind, string glyph)

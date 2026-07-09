@@ -88,6 +88,7 @@ namespace WinUIonWebUWP
         private readonly DispatcherTimer _downloadsFileRefreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         private bool _isRefreshingDownloadFileAvailability;
         private ContainerPage? _containerPage;
+        private int _settingsNavigationVersion;
 
         public bool IsWindowActive { get; private set; } = true;
         public string ContainerId => _containerId;
@@ -104,7 +105,7 @@ namespace WinUIonWebUWP
                     ? pendingContainerId
                     : SettingsManager.Instance.PrimaryContainerId;
             _pendingContainerId = null;
-            _containerDisplayName = SettingsManager.Instance.GetContainerDisplayName(_containerId);
+            _containerDisplayName = SettingsManager.Instance.GetContainerSiteName(_containerId);
             _hostedManifestName = SettingsManager.Instance.GetContainerManifestName(_containerId);
             _hostedDocumentTitle = SettingsManager.Instance.GetContainerDocumentTitle(_containerId);
             AppThemeManager.LoadSettings(_containerId);
@@ -123,6 +124,7 @@ namespace WinUIonWebUWP
             UpdateTitleBarButtonInset(coreTitleBar);
 
             ContentFrame.Navigated += ContentFrame_Navigated;
+            SettingsManager.Instance.ContainerIdentityChanged += SettingsManager_ContainerIdentityChanged;
 
             var navigationManager = SystemNavigationManager.GetForCurrentView();
             navigationManager.BackRequested += SystemNavigationManager_BackRequested;
@@ -149,6 +151,7 @@ namespace WinUIonWebUWP
 
         private void MainPage_Unloaded(object sender, RoutedEventArgs e)
         {
+            SettingsManager.Instance.ContainerIdentityChanged -= SettingsManager_ContainerIdentityChanged;
             App.UnregisterContainerView(_containerId, ApplicationView.GetForCurrentView().Id);
         }
 
@@ -773,12 +776,33 @@ namespace WinUIonWebUWP
 
         public void RefreshContainerIdentity()
         {
-            _containerDisplayName = SettingsManager.Instance.GetContainerDisplayName(_containerId);
+            _containerDisplayName = SettingsManager.Instance.GetContainerSiteName(_containerId);
             _hostedManifestName = SettingsManager.Instance.GetContainerManifestName(_containerId);
             _hostedDocumentTitle = SettingsManager.Instance.GetContainerDocumentTitle(_containerId);
             TitleBarAppName.Text = _containerDisplayName;
             ImgAppIcon.Source = new BitmapImage(SettingsManager.Instance.GetContainerIconUri(_containerId));
             UpdateWindowTitle();
+        }
+
+        private void SettingsManager_ContainerIdentityChanged(object? sender, ContainerIdentityChangedEventArgs e)
+        {
+            if (!string.Equals(e.ContainerId, _containerId, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (!Dispatcher.HasThreadAccess)
+            {
+                _ = Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => SettingsManager_ContainerIdentityChanged(sender, e));
+                return;
+            }
+
+            RefreshContainerIdentity();
+            if (!_isSettingsHostOpen
+                && ContentFrame?.CurrentSourcePageType == typeof(Pages.ContainerPage))
+            {
+                ApplyHostedDocumentInfo();
+            }
         }
 
         private void LoadCachedHostedTitleBarState()
@@ -1184,10 +1208,35 @@ namespace WinUIonWebUWP
                 CreateSettingsSlideTransition(SlideNavigationTransitionEffect.FromRight));
         }
 
-        private void NavigateSettingsPage(Type pageType, NavigationTransitionInfo? transitionInfo = null)
+        private async void NavigateSettingsPage(Type pageType, NavigationTransitionInfo? transitionInfo = null)
         {
             if (ContentFrame.CurrentSourcePageType == pageType) return;
+            var navigationVersion = ++_settingsNavigationVersion;
+
+            if (IsSettingsPage(pageType))
+            {
+                PrepareSettingsHostForNavigation(pageType);
+                await Dispatcher.RunAsync(CoreDispatcherPriority.Low, () => { });
+            }
+
+            if (navigationVersion != _settingsNavigationVersion
+                || ContentFrame.CurrentSourcePageType == pageType)
+            {
+                return;
+            }
+
             ContentFrame.Navigate(pageType, null, transitionInfo ?? CreateDefaultSettingsTransition());
+        }
+
+        private void PrepareSettingsHostForNavigation(Type pageType)
+        {
+            _isSettingsHostOpen = true;
+            ApplyAppTitleBarIdentity();
+            ApplyHostedTitleBarVisibility(false);
+            ContentFrame.Margin = new Thickness(0, 96, 0, 0);
+            UpdateDownloadTitleBarButton(false);
+            MoreButton.Visibility = Visibility.Collapsed;
+            UpdateSettingsTitleForPage(pageType, GetSettingsBreadcrumb(pageType));
         }
 
         private async void PinContainerButton_Click(object sender, RoutedEventArgs e)
@@ -1346,6 +1395,7 @@ namespace WinUIonWebUWP
 
         private void NavigateSettingsBack()
         {
+            _settingsNavigationVersion++;
             if (ContentFrame.CanGoBack)
             {
                 ContentFrame.GoBack();
@@ -1502,7 +1552,7 @@ namespace WinUIonWebUWP
             }
         }
 
-        private static bool IsSupportedUrl(string? url)
+        public static bool IsSupportedUrl(string? url)
         {
             return Uri.TryCreate(url, UriKind.Absolute, out var uri)
                 && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == "edge")
@@ -1514,12 +1564,6 @@ namespace WinUIonWebUWP
         private void RefreshUrlHistoryItems()
         {
             _urlHistoryItems.Clear();
-            var defaultUrl = _loader.GetString("DefaultHomeUrl");
-            if (IsSupportedUrl(defaultUrl))
-            {
-                _urlHistoryItems.Add(defaultUrl);
-            }
-
             foreach (var url in SettingsManager.Instance.GetContainerHomeUrlHistory(_containerId).Where(IsSupportedUrl))
             {
                 if (!_urlHistoryItems.Any(item => string.Equals(item, url, StringComparison.OrdinalIgnoreCase)))

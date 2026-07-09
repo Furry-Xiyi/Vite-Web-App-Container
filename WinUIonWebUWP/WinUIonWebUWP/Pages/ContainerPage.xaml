@@ -8,95 +8,162 @@
         <Grid x:Name="LauncherPanel"
               Background="Transparent"
               Visibility="Collapsed">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
+            <Border Width="420"
+                    MaxWidth="520"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="Transparent">
+                <StackPanel Spacing="8">
+                    <StackPanel Spacing="4">
+                        <TextBlock x:Name="LauncherUrlErrorText"
+                                   x:Uid="LauncherUrlErrorText"
+                                   MinHeight="20"
+                                   Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
+                                   Opacity="0"/>
 
-                <StackPanel Grid.Row="1"
-                            Width="420"
-                            MaxWidth="520"
-                            HorizontalAlignment="Center"
-                            Spacing="4">
-                    <TextBlock x:Name="LauncherUrlErrorText"
-                               x:Uid="LauncherUrlErrorText"
-                               MinHeight="20"
-                               Foreground="{ThemeResource SystemControlErrorTextForegroundBrush}"
-                               Opacity="0"/>
-
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <AutoSuggestBox x:Name="LauncherUrlTextBox"
-                                        x:Uid="LauncherUrlTextBox"
-                                        MinHeight="36"
-                                        GotFocus="LauncherUrlTextBox_GotFocus"
-                                        TextChanged="LauncherUrlTextBox_TextChanged"
-                                        SuggestionChosen="LauncherUrlTextBox_SuggestionChosen"
-                                        QuerySubmitted="LauncherUrlTextBox_QuerySubmitted"/>
-
-                        <Button x:Name="LauncherAddButton"
-                                x:Uid="LauncherAddButton"
-                                Grid.Column="1"
-                                MinHeight="36"
-                                Margin="8,0,0,0"
-                                Style="{StaticResource AccentButtonStyle}"
-                                Click="LauncherAddButton_Click"/>
-                    </Grid>
-                </StackPanel>
-
-                <muxc:Expander x:Name="LauncherDeveloperExpander"
-                               x:Uid="LauncherDeveloperExpander"
-                               Grid.Row="2"
-                               Width="420"
-                               MaxWidth="520"
-                               Margin="0,8,0,0"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Top">
-                    <StackPanel Spacing="8">
-                        <muxc:NumberBox x:Name="LauncherVitePortNumberBox"
-                                        x:Uid="LauncherVitePortNumberBox"
-                                        Minimum="1"
-                                        Maximum="65535"
-                                        SmallChange="1"
-                                        LargeChange="100"
-                                        SpinButtonPlacementMode="Compact"
-                                        ValueChanged="LauncherVitePortNumberBox_ValueChanged"/>
-
-                        <Grid ColumnSpacing="8">
+                        <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <CheckBox x:Name="LauncherViteUsePathCheckBox"
-                                      x:Uid="LauncherViteUsePathCheckBox"
-                                      VerticalAlignment="Bottom"
-                                      Checked="LauncherViteUsePathCheckBox_Changed"
-                                      Unchecked="LauncherViteUsePathCheckBox_Changed"/>
-                            <TextBox x:Name="LauncherVitePathBox"
-                                     Grid.Column="1"
-                                     x:Uid="LauncherVitePathBox"
-                                     TextChanged="LauncherVitePathBox_TextChanged"/>
+
+                            <AutoSuggestBox x:Name="LauncherUrlTextBox"
+                                            x:Uid="LauncherUrlTextBox"
+                                            MinHeight="36"
+                                            MaxSuggestionListHeight="220"
+                                            GotFocus="LauncherUrlTextBox_GotFocus"
+                                            TextChanged="LauncherUrlTextBox_TextChanged"
+                                            SuggestionChosen="LauncherUrlTextBox_SuggestionChosen"
+                                            QuerySubmitted="LauncherUrlTextBox_QuerySubmitted">
+                                <AutoSuggestBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Height="40"
+                                              MinWidth="280">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <TextBlock Text="{Binding}"
+                                                       VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis"/>
+
+                                            <AppBarButton x:Uid="DeleteUrlHistoryButton"
+                                                          Grid.Column="1"
+                                                          Width="32"
+                                                          Height="32"
+                                                          MinWidth="32"
+                                                          MinHeight="32"
+                                                          Padding="0"
+                                                          Label=""
+                                                          Background="Transparent"
+                                                          HorizontalAlignment="Center"
+                                                          VerticalAlignment="Center"
+                                                          HorizontalContentAlignment="Center"
+                                                          VerticalContentAlignment="Center"
+                                                          Tag="{Binding}"
+                                                          Click="DeleteLauncherUrlHistoryButton_Click">
+                                                <AppBarButton.Template>
+                                                    <ControlTemplate TargetType="AppBarButton">
+                                                        <Grid Width="32"
+                                                              Height="32"
+                                                              Background="Transparent">
+                                                            <VisualStateManager.VisualStateGroups>
+                                                                <VisualStateGroup x:Name="CommonStates">
+                                                                    <VisualState x:Name="Normal"/>
+                                                                    <VisualState x:Name="PointerOver">
+                                                                        <Storyboard>
+                                                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonBackground"
+                                                                                                           Storyboard.TargetProperty="Background">
+                                                                                <DiscreteObjectKeyFrame KeyTime="0"
+                                                                                                        Value="{ThemeResource SystemControlHighlightListLowBrush}"/>
+                                                                            </ObjectAnimationUsingKeyFrames>
+                                                                        </Storyboard>
+                                                                    </VisualState>
+                                                                    <VisualState x:Name="Pressed">
+                                                                        <Storyboard>
+                                                                            <ObjectAnimationUsingKeyFrames Storyboard.TargetName="ButtonBackground"
+                                                                                                           Storyboard.TargetProperty="Background">
+                                                                                <DiscreteObjectKeyFrame KeyTime="0"
+                                                                                                        Value="{ThemeResource SystemControlHighlightListMediumBrush}"/>
+                                                                            </ObjectAnimationUsingKeyFrames>
+                                                                        </Storyboard>
+                                                                    </VisualState>
+                                                                    <VisualState x:Name="Disabled"/>
+                                                                </VisualStateGroup>
+                                                            </VisualStateManager.VisualStateGroups>
+                                                            <Border x:Name="ButtonBackground"
+                                                                    CornerRadius="4"
+                                                                    Background="Transparent"/>
+                                                            <ContentPresenter Content="{TemplateBinding Icon}"
+                                                                              HorizontalAlignment="Center"
+                                                                              VerticalAlignment="Center"/>
+                                                        </Grid>
+                                                    </ControlTemplate>
+                                                </AppBarButton.Template>
+                                                <AppBarButton.Icon>
+                                                    <FontIcon FontSize="10"
+                                                              Glyph="&#xE711;"/>
+                                                </AppBarButton.Icon>
+                                            </AppBarButton>
+                                        </Grid>
+                                    </DataTemplate>
+                                </AutoSuggestBox.ItemTemplate>
+                            </AutoSuggestBox>
+
+                            <Button x:Name="LauncherAddButton"
+                                    x:Uid="LauncherAddButton"
+                                    Grid.Column="1"
+                                    MinHeight="36"
+                                    Margin="8,0,0,0"
+                                    Style="{StaticResource AccentButtonStyle}"
+                                    Click="LauncherAddButton_Click"/>
                         </Grid>
-
-                        <TextBlock x:Name="LauncherViteUrlText"
-                                   FontFamily="Consolas"
-                                   FontSize="12"
-                                   TextWrapping="Wrap"
-                                   Opacity="0.72"/>
-
-                        <Button x:Name="LauncherViteUseUrlButton"
-                                x:Uid="LauncherViteUseUrlButton"
-                                HorizontalAlignment="Right"
-                                Click="LauncherViteUseUrlButton_Click"/>
                     </StackPanel>
-                </muxc:Expander>
-            </Grid>
+
+                    <muxc:Expander x:Name="LauncherDeveloperExpander"
+                                   x:Uid="LauncherDeveloperExpander"
+                                   HorizontalAlignment="Stretch">
+                        <StackPanel Spacing="8">
+                            <muxc:NumberBox x:Name="LauncherVitePortNumberBox"
+                                            x:Uid="LauncherVitePortNumberBox"
+                                            Minimum="1"
+                                            Maximum="65535"
+                                            SmallChange="1"
+                                            LargeChange="100"
+                                            SpinButtonPlacementMode="Compact"
+                                            ValueChanged="LauncherVitePortNumberBox_ValueChanged"/>
+
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox x:Name="LauncherViteUsePathCheckBox"
+                                          x:Uid="LauncherViteUsePathCheckBox"
+                                          VerticalAlignment="Bottom"
+                                          Checked="LauncherViteUsePathCheckBox_Changed"
+                                          Unchecked="LauncherViteUsePathCheckBox_Changed"/>
+                                <TextBox x:Name="LauncherVitePathBox"
+                                         Grid.Column="1"
+                                         x:Uid="LauncherVitePathBox"
+                                         TextChanged="LauncherVitePathBox_TextChanged"/>
+                            </Grid>
+
+                            <TextBlock x:Name="LauncherViteUrlText"
+                                       FontFamily="Consolas"
+                                       FontSize="12"
+                                       TextWrapping="Wrap"
+                                       Opacity="0.72"/>
+
+                            <Button x:Name="LauncherViteUseUrlButton"
+                                    x:Uid="LauncherViteUseUrlButton"
+                                    HorizontalAlignment="Right"
+                                    Click="LauncherViteUseUrlButton_Click"/>
+                        </StackPanel>
+                    </muxc:Expander>
+                </StackPanel>
+            </Border>
         </Grid>
 
         <muxc:WebView2 x:Name="RootWebView"

@@ -944,6 +944,8 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
         {
             base.OnNavigatedTo(e);
             _owner = e.Parameter as MainPage ?? MainPage.Current;
+            var containerId = _owner?.ContainerId ?? SettingsManager.Instance.ActiveContainerId;
+            _hostedAppTheme = SettingsManager.Instance.GetContainerAppTheme(containerId);
         }
 
         public string CurrentUrl => RootWebView?.Source?.AbsoluteUri ?? _owner?.ContainerHomeUrl ?? SettingsManager.Instance.HomeUrl;
@@ -1047,6 +1049,18 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             }
         }
 
+        private void DeleteLauncherUrlHistoryButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is AppBarButton button && button.Tag is string url)
+            {
+                var containerId = _owner?.ContainerId ?? SettingsManager.Instance.PrimaryContainerId;
+                SettingsManager.Instance.RemoveContainerHomeUrlHistory(containerId, url);
+                ShowLauncherUrlSuggestions();
+                LauncherUrlTextBox.Focus(FocusState.Programmatic);
+                _ = Dispatcher.RunAsync(CoreDispatcherPriority.Normal, ShowLauncherUrlSuggestions);
+            }
+        }
+
         private async void LauncherAddButton_Click(object sender, RoutedEventArgs e)
         {
             await OpenLauncherUrlAsync();
@@ -1069,6 +1083,8 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             HideLauncherUrlError();
             LauncherUrlTextBox.Text = url;
             LauncherAddButton.IsEnabled = false;
+            SettingsManager.Instance.AddContainerHomeUrlHistory(_owner.ContainerId, url);
+            RefreshLauncherUrlSuggestions();
             try
             {
                 await _owner.OpenUrlInNewContainerAsync(url);
@@ -1091,11 +1107,14 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
 
         private void RefreshLauncherUrlSuggestions()
         {
-            var defaultUrl = GetResourceString("DefaultHomeUrl");
             _launcherUrlSuggestions.Clear();
-            if (!string.IsNullOrWhiteSpace(defaultUrl))
+            var containerId = _owner?.ContainerId ?? SettingsManager.Instance.PrimaryContainerId;
+            foreach (var url in SettingsManager.Instance.GetContainerHomeUrlHistory(containerId).Where(MainPage.IsSupportedUrl))
             {
-                _launcherUrlSuggestions.Add(defaultUrl);
+                if (!_launcherUrlSuggestions.Any(item => string.Equals(item, url, StringComparison.OrdinalIgnoreCase)))
+                {
+                    _launcherUrlSuggestions.Add(url);
+                }
             }
         }
 
@@ -1643,6 +1662,20 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
 
             var containerId = _owner?.ContainerId ?? SettingsManager.Instance.ActiveContainerId;
 
+            if (key == "theme")
+            {
+                var appTheme = value.Equals("light", StringComparison.OrdinalIgnoreCase)
+                    ? "Light"
+                    : value.Equals("dark", StringComparison.OrdinalIgnoreCase)
+                        ? "Dark"
+                        : "System";
+
+                _hostedAppTheme = appTheme;
+                SettingsManager.Instance.SetContainerAppTheme(containerId, appTheme);
+                _owner?.ApplyCurrentContainerTheme();
+                return;
+            }
+
             if (key == "material")
             {
                 var appMaterial = value.Equals("acrylic", StringComparison.OrdinalIgnoreCase)
@@ -2114,6 +2147,9 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
         private string GetTransparentWebViewScript()
         {
             var css = new StringBuilder();
+            css.Append("html.winui-webview-host{color-scheme:light dark;}");
+            css.Append("html.winui-webview-host.winui-host-theme-light{color-scheme:light;}");
+            css.Append("html.winui-webview-host.winui-host-theme-dark{color-scheme:dark;}");
             css.Append("html.winui-webview-host,html.winui-webview-host *{scrollbar-width:thin;}");
             string currentHost = "";
             if (Uri.TryCreate(RootWebView?.Source?.AbsoluteUri, UriKind.Absolute, out var currentUri))
@@ -2138,7 +2174,10 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             }
 
             var cssJson = ToJavaScriptStringLiteral(css.ToString());
-            return $@"(()=>{{window.__WINUI_ON_WEB_UWP_APP__=true;const root=document.documentElement;if(root){{root.classList.add('winui-webview-host');}}const id='winui-on-web-transparent-background';let style=document.getElementById(id);if(!style){{style=document.createElement('style');style.id=id;(document.head||root||document.documentElement).appendChild(style);}}style.textContent={cssJson};}})()";
+            var themeClassJson = ToJavaScriptStringLiteral(AppThemeManager.GetIsDarkTheme()
+                ? "winui-host-theme-dark"
+                : "winui-host-theme-light");
+            return $@"(()=>{{window.__WINUI_ON_WEB_UWP_APP__=true;const root=document.documentElement;const hostThemeClass={themeClassJson};if(root){{root.classList.add('winui-webview-host');root.classList.remove('winui-host-theme-light','winui-host-theme-dark');root.classList.add(hostThemeClass);}}const id='winui-on-web-transparent-background';let style=document.getElementById(id);if(!style){{style=document.createElement('style');style.id=id;(document.head||root||document.documentElement).appendChild(style);}}style.textContent={cssJson};}})()";
         }
 
         private static string ToJavaScriptStringLiteral(string value)

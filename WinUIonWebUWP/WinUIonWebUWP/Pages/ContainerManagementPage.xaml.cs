@@ -20,6 +20,8 @@ namespace WinUIonWebUWP.Pages
     public sealed partial class ContainerManagementPage : Page
     {
         private readonly ResourceLoader _loader = new ResourceLoader();
+        private int _loadVersion;
+        private bool _isUnloaded;
 
         public ObservableCollection<ContainerItemViewModel> Containers { get; } = new ObservableCollection<ContainerItemViewModel>();
 
@@ -27,23 +29,110 @@ namespace WinUIonWebUWP.Pages
         {
             this.InitializeComponent();
             this.Loaded += ContainerManagementPage_Loaded;
+            this.Unloaded += ContainerManagementPage_Unloaded;
         }
 
         private async void ContainerManagementPage_Loaded(object sender, RoutedEventArgs e)
         {
-            var mainPage = MainPage.Current;
-            if (mainPage?.GetContainerPageForSettings() != null)
+            _isUnloaded = false;
+            var loadVersion = ++_loadVersion;
+
+            SettingsManager.Instance.ContainerIdentityChanged -= SettingsManager_ContainerIdentityChanged;
+            SettingsManager.Instance.ContainerIdentityChanged += SettingsManager_ContainerIdentityChanged;
+
+            await YieldForPageLoadAsync();
+            if (!IsCurrentLoad(loadVersion))
             {
-                await mainPage.RefreshCurrentContainerIconAsync();
+                return;
             }
 
-            RefreshContainers();
+            await RefreshContainersAsync(loadVersion);
+            _ = RefreshCurrentContainerIconAfterInitialLoadAsync(loadVersion);
         }
 
-        private void RefreshContainers()
+        private void ContainerManagementPage_Unloaded(object sender, RoutedEventArgs e)
+        {
+            _isUnloaded = true;
+            _loadVersion++;
+            SettingsManager.Instance.ContainerIdentityChanged -= SettingsManager_ContainerIdentityChanged;
+        }
+
+        private async void RefreshContainers()
+        {
+            var loadVersion = ++_loadVersion;
+            await RefreshContainersAsync(loadVersion);
+        }
+
+        private async Task RefreshContainersAsync(int loadVersion)
         {
             Containers.Clear();
-            foreach (var container in SettingsManager.Instance.Containers.Where(item => !SettingsManager.Instance.IsDefaultContainer(item.Id)))
+            var containers = SettingsManager.Instance.Containers
+                .Where(item => !SettingsManager.Instance.IsDefaultContainer(item.Id))
+                .ToList();
+
+            for (var index = 0; index < containers.Count; index++)
+            {
+                if (!IsCurrentLoad(loadVersion))
+                {
+                    return;
+                }
+
+                Containers.Add(new ContainerItemViewModel(containers[index], MainPage.Current?.ContainerId));
+                if ((index + 1) % 2 == 0)
+                {
+                    await YieldForPageLoadAsync();
+                }
+            }
+        }
+
+        private bool IsCurrentLoad(int loadVersion) =>
+            !_isUnloaded && loadVersion == _loadVersion;
+
+        private async Task YieldForPageLoadAsync()
+        {
+            await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Low, () => { });
+        }
+
+        private async Task RefreshCurrentContainerIconAfterInitialLoadAsync(int loadVersion)
+        {
+            await Task.Delay(700);
+            if (!IsCurrentLoad(loadVersion))
+            {
+                return;
+            }
+
+            var mainPage = MainPage.Current;
+            if (mainPage?.GetContainerPageForSettings() == null)
+            {
+                return;
+            }
+
+            await mainPage.RefreshCurrentContainerIconAsync();
+            if (IsCurrentLoad(loadVersion))
+            {
+                await RefreshContainersAsync(loadVersion);
+            }
+        }
+
+        private void SettingsManager_ContainerIdentityChanged(object? sender, ContainerIdentityChangedEventArgs e)
+        {
+            if (!Dispatcher.HasThreadAccess)
+            {
+                _ = Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () => SettingsManager_ContainerIdentityChanged(sender, e));
+                return;
+            }
+
+            var item = FindItem(e.ContainerId);
+            if (item != null)
+            {
+                item.RefreshFromSettings(SettingsManager.Instance.GetContainerHomeUrl(e.ContainerId));
+                return;
+            }
+
+            var container = SettingsManager.Instance.Containers.FirstOrDefault(candidate =>
+                !SettingsManager.Instance.IsDefaultContainer(candidate.Id)
+                && string.Equals(candidate.Id, e.ContainerId, StringComparison.OrdinalIgnoreCase));
+            if (container != null)
             {
                 Containers.Add(new ContainerItemViewModel(container, MainPage.Current?.ContainerId));
             }
@@ -85,7 +174,7 @@ namespace WinUIonWebUWP.Pages
                 MainPage.Current.RefreshContainerIdentity();
             }
 
-            RefreshContainers();
+            item.RefreshFromSettings(homeUrl);
             await Task.CompletedTask;
         }
 
@@ -345,13 +434,11 @@ namespace WinUIonWebUWP.Pages
 
     public sealed class ContainerItemViewModel : INotifyPropertyChanged
     {
+        private static string? s_webViewRuntimeVersion;
+
         public ContainerItemViewModel(WebContainer container, string? currentContainerId)
         {
             Id = container.Id;
-            DisplayName = SettingsManager.Instance.GetContainerSiteName(Id);
-            HomeUrl = container.HomeUrl;
-            EditDisplayName = SettingsManager.Instance.GetContainerDisplayName(Id);
-            EditHomeUrl = HomeUrl;
             CanDelete = !SettingsManager.Instance.IsDefaultContainer(Id);
             IsCurrentContainer = string.Equals(Id, currentContainerId, StringComparison.OrdinalIgnoreCase);
             IsPinned = SecondaryTile.Exists(Id);
@@ -359,25 +446,41 @@ namespace WinUIonWebUWP.Pages
             IconUri = SettingsManager.Instance.GetContainerIconUri(Id);
             IconSource = new BitmapImage(IconUri);
             WebViewRuntimeVersion = GetWebViewRuntimeVersion();
-            DiagnosticCurrentUrl = IsCurrentContainer
-                ? MainPage.Current?.GetContainerPageForSettings()?.CurrentUrl ?? HomeUrl
-                : HomeUrl;
-            DiagnosticOrigin = GetOrigin(DiagnosticCurrentUrl);
             ProfilePath = SettingsManager.Instance.GetContainerWebViewDataFolder(Id);
-
-            var manifestName = SettingsManager.Instance.GetContainerManifestName(Id);
-            ManifestSummary = string.IsNullOrWhiteSpace(manifestName)
-                ? GetResourceString("ContainerDiagnosticManifestMissing")
-                : manifestName;
+            RefreshFromSettings(container.HomeUrl);
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
         public string Id { get; }
-        public string DisplayName { get; }
-        public string HomeUrl { get; }
-        public string EditDisplayName { get; set; }
-        public string EditHomeUrl { get; set; }
+        private string _displayName = "";
+        public string DisplayName
+        {
+            get => _displayName;
+            private set => SetProperty(ref _displayName, value, nameof(DisplayName));
+        }
+
+        private string _homeUrl = "";
+        public string HomeUrl
+        {
+            get => _homeUrl;
+            private set => SetProperty(ref _homeUrl, value, nameof(HomeUrl));
+        }
+
+        private string _editDisplayName = "";
+        public string EditDisplayName
+        {
+            get => _editDisplayName;
+            set => SetProperty(ref _editDisplayName, value, nameof(EditDisplayName));
+        }
+
+        private string _editHomeUrl = "";
+        public string EditHomeUrl
+        {
+            get => _editHomeUrl;
+            set => SetProperty(ref _editHomeUrl, value, nameof(EditHomeUrl));
+        }
+
         public bool CanDelete { get; }
         public bool IsCurrentContainer { get; }
         public bool IsPinned { get; }
@@ -390,10 +493,44 @@ namespace WinUIonWebUWP.Pages
         public ImageSource IconSource { get; }
 
         public string WebViewRuntimeVersion { get; }
-        public string DiagnosticCurrentUrl { get; }
-        public string DiagnosticOrigin { get; }
+        private string _diagnosticCurrentUrl = "";
+        public string DiagnosticCurrentUrl
+        {
+            get => _diagnosticCurrentUrl;
+            private set => SetProperty(ref _diagnosticCurrentUrl, value, nameof(DiagnosticCurrentUrl));
+        }
+
+        private string _diagnosticOrigin = "";
+        public string DiagnosticOrigin
+        {
+            get => _diagnosticOrigin;
+            private set => SetProperty(ref _diagnosticOrigin, value, nameof(DiagnosticOrigin));
+        }
+
         public string ProfilePath { get; }
-        public string ManifestSummary { get; }
+        private string _manifestSummary = "";
+        public string ManifestSummary
+        {
+            get => _manifestSummary;
+            private set => SetProperty(ref _manifestSummary, value, nameof(ManifestSummary));
+        }
+
+        public void RefreshFromSettings(string homeUrl)
+        {
+            DisplayName = SettingsManager.Instance.GetContainerDisplayName(Id);
+            HomeUrl = homeUrl;
+            EditDisplayName = DisplayName;
+            EditHomeUrl = HomeUrl;
+            DiagnosticCurrentUrl = IsCurrentContainer
+                ? MainPage.Current?.GetContainerPageForSettings()?.CurrentUrl ?? HomeUrl
+                : HomeUrl;
+            DiagnosticOrigin = GetOrigin(DiagnosticCurrentUrl);
+
+            var manifestName = SettingsManager.Instance.GetContainerManifestName(Id);
+            ManifestSummary = string.IsNullOrWhiteSpace(manifestName)
+                ? GetResourceString("ContainerDiagnosticManifestMissing")
+                : manifestName;
+        }
 
         public string CreateDiagnosticsText()
         {
@@ -417,19 +554,37 @@ namespace WinUIonWebUWP.Pages
 
         private static string GetWebViewRuntimeVersion()
         {
+            if (!string.IsNullOrWhiteSpace(s_webViewRuntimeVersion))
+            {
+                return s_webViewRuntimeVersion;
+            }
+
             try
             {
-                return CoreWebView2Environment.GetAvailableBrowserVersionString();
+                s_webViewRuntimeVersion = CoreWebView2Environment.GetAvailableBrowserVersionString();
             }
             catch
             {
-                return GetResourceString("ContainerDiagnosticRuntimeUnavailable");
+                s_webViewRuntimeVersion = GetResourceString("ContainerDiagnosticRuntimeUnavailable");
             }
+
+            return s_webViewRuntimeVersion;
         }
 
         private static string GetResourceString(string key)
         {
             return ResourceLoader.GetForCurrentView().GetString(key);
+        }
+
+        private void SetProperty<T>(ref T storage, T value, string propertyName)
+        {
+            if (Equals(storage, value))
+            {
+                return;
+            }
+
+            storage = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

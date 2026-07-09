@@ -31,6 +31,8 @@ namespace WinUIonWebUWP.Pages
         private Process? _viteProcess;
         private bool _isCheckingViteHealth;
         private bool _hasSeenViteOnline;
+        private int _loadVersion;
+        private bool _isUnloaded;
 
         public ObservableCollection<TransparentCssRuleViewModel> Rules { get; } = new ObservableCollection<TransparentCssRuleViewModel>();
         public ObservableCollection<DevToolsSiteViewModel> DevToolsSites { get; } = new ObservableCollection<DevToolsSiteViewModel>();
@@ -43,52 +45,117 @@ namespace WinUIonWebUWP.Pages
             this.Unloaded += AboutPage_Unloaded;
         }
 
-        private void AboutPage_Loaded(object sender, RoutedEventArgs e)
+        private async void AboutPage_Loaded(object sender, RoutedEventArgs e)
         {
+            _isUnloaded = false;
+            var loadVersion = ++_loadVersion;
             _isInitializing = true;
             try
             {
-                LoadRules();
                 LoadAppInfo();
                 PerSiteCssToggle.IsOn = SettingsManager.Instance.UsePerSiteTransparentCss;
-                UpdateRuleHostVisibility();
                 F12DevToolsToggle.IsOn = SettingsManager.Instance.IsF12DevToolsEnabled;
-                LoadDevToolsSites();
                 UpdateDownloadFolderPathText();
                 SoundToggle.IsOn = SettingsManager.Instance.EnableSound;
                 LoadViteDevServerSettings();
+
+                await YieldForPageLoadAsync();
+                if (!IsCurrentLoad(loadVersion))
+                {
+                    return;
+                }
+
+                await LoadRulesAsync(loadVersion);
+                if (!IsCurrentLoad(loadVersion))
+                {
+                    return;
+                }
+
+                await LoadDevToolsSitesAsync(loadVersion);
             }
             finally
             {
-                _isInitializing = false;
+                if (IsCurrentLoad(loadVersion))
+                {
+                    _isInitializing = false;
+                }
             }
 
+            if (!IsCurrentLoad(loadVersion))
+            {
+                return;
+            }
+
+            SettingsManager.Instance.ContainerIdentityChanged -= SettingsManager_ContainerIdentityChanged;
+            SettingsManager.Instance.ContainerIdentityChanged += SettingsManager_ContainerIdentityChanged;
             _viteHealthTimer.Start();
-            _ = CheckViteDevServerAsync();
+            _ = StartViteHealthCheckAfterFirstFrameAsync(loadVersion);
         }
 
         private void AboutPage_Unloaded(object sender, RoutedEventArgs e)
         {
+            _isUnloaded = true;
+            _loadVersion++;
             _viteHealthTimer.Stop();
+            SettingsManager.Instance.ContainerIdentityChanged -= SettingsManager_ContainerIdentityChanged;
         }
 
-        private void LoadRules()
+        private async Task LoadRulesAsync(int loadVersion)
         {
             Rules.Clear();
-            foreach (var rule in SettingsManager.Instance.TransparentCssRules)
+            var rules = SettingsManager.Instance.TransparentCssRules.ToList();
+            for (var index = 0; index < rules.Count; index++)
             {
-                Rules.Add(new TransparentCssRuleViewModel(rule, SettingsManager.Instance.UsePerSiteTransparentCss));
+                if (!IsCurrentLoad(loadVersion))
+                {
+                    return;
+                }
+
+                Rules.Add(new TransparentCssRuleViewModel(rules[index], SettingsManager.Instance.UsePerSiteTransparentCss));
+                if ((index + 1) % 4 == 0)
+                {
+                    await YieldForPageLoadAsync();
+                }
             }
         }
 
-        private void LoadDevToolsSites()
+        private async Task LoadDevToolsSitesAsync(int loadVersion)
         {
             DevToolsSites.Clear();
             var isMasterEnabled = SettingsManager.Instance.IsF12DevToolsEnabled;
-            foreach (var container in SettingsManager.Instance.Containers
-                .Where(item => !SettingsManager.Instance.IsDefaultContainer(item.Id)))
+            var containers = SettingsManager.Instance.Containers
+                .Where(item => !SettingsManager.Instance.IsDefaultContainer(item.Id))
+                .ToList();
+
+            for (var index = 0; index < containers.Count; index++)
             {
-                DevToolsSites.Add(new DevToolsSiteViewModel(container, isMasterEnabled));
+                if (!IsCurrentLoad(loadVersion))
+                {
+                    return;
+                }
+
+                DevToolsSites.Add(new DevToolsSiteViewModel(containers[index], isMasterEnabled));
+                if ((index + 1) % 3 == 0)
+                {
+                    await YieldForPageLoadAsync();
+                }
+            }
+        }
+
+        private bool IsCurrentLoad(int loadVersion) =>
+            !_isUnloaded && loadVersion == _loadVersion;
+
+        private async Task YieldForPageLoadAsync()
+        {
+            await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Low, () => { });
+        }
+
+        private async Task StartViteHealthCheckAfterFirstFrameAsync(int loadVersion)
+        {
+            await Task.Delay(350);
+            if (IsCurrentLoad(loadVersion))
+            {
+                await CheckViteDevServerAsync();
             }
         }
 
@@ -278,14 +345,42 @@ namespace WinUIonWebUWP.Pages
             DevToolsSitesItemsControl.ItemsSource = DevToolsSites;
         }
 
-        private void ReloadDevToolsSitesView()
+        private void SettingsManager_ContainerIdentityChanged(object? sender, ContainerIdentityChangedEventArgs e)
+        {
+            if (!Dispatcher.HasThreadAccess)
+            {
+                _ = Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () => SettingsManager_ContainerIdentityChanged(sender, e));
+                return;
+            }
+
+            var site = DevToolsSites.FirstOrDefault(item => string.Equals(item.Id, e.ContainerId, StringComparison.OrdinalIgnoreCase));
+            if (site != null)
+            {
+                site.RefreshIdentity();
+                return;
+            }
+
+            var container = SettingsManager.Instance.Containers.FirstOrDefault(candidate =>
+                !SettingsManager.Instance.IsDefaultContainer(candidate.Id)
+                && string.Equals(candidate.Id, e.ContainerId, StringComparison.OrdinalIgnoreCase));
+            if (container != null)
+            {
+                DevToolsSites.Add(new DevToolsSiteViewModel(container, SettingsManager.Instance.IsF12DevToolsEnabled));
+            }
+        }
+
+        private async void ReloadDevToolsSitesView()
         {
             var wasInitializing = _isInitializing;
+            var loadVersion = _loadVersion;
             _isInitializing = true;
             try
             {
-                LoadDevToolsSites();
-                RefreshDevToolsSitesView();
+                await LoadDevToolsSitesAsync(loadVersion);
+                if (IsCurrentLoad(loadVersion))
+                {
+                    RefreshDevToolsSitesView();
+                }
             }
             finally
             {
@@ -822,22 +917,33 @@ namespace WinUIonWebUWP.Pages
     public sealed class DevToolsSiteViewModel : System.ComponentModel.INotifyPropertyChanged
     {
         private bool _isDevToolsEnabled;
+        private string _displayName = "";
+        private string _homeUrl = "";
 
         public DevToolsSiteViewModel(WebContainer container, bool isMasterEnabled)
         {
             Id = container.Id;
-            DisplayName = SettingsManager.Instance.GetContainerSiteName(Id);
-            HomeUrl = container.HomeUrl;
             IconUri = SettingsManager.Instance.GetContainerIconUri(Id);
             _isDevToolsEnabled = SettingsManager.Instance.IsContainerDevToolsEnabled(Id);
             IsMasterEnabled = isMasterEnabled;
+            RefreshIdentity();
         }
 
         public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
 
         public string Id { get; }
-        public string DisplayName { get; }
-        public string HomeUrl { get; }
+        public string DisplayName
+        {
+            get => _displayName;
+            private set => SetProperty(ref _displayName, value, nameof(DisplayName));
+        }
+
+        public string HomeUrl
+        {
+            get => _homeUrl;
+            private set => SetProperty(ref _homeUrl, value, nameof(HomeUrl));
+        }
+
         public Uri IconUri { get; }
         public bool IsDevToolsEnabled
         {
@@ -854,5 +960,22 @@ namespace WinUIonWebUWP.Pages
             }
         }
         public bool IsMasterEnabled { get; }
+
+        public void RefreshIdentity()
+        {
+            DisplayName = SettingsManager.Instance.GetContainerSiteName(Id);
+            HomeUrl = SettingsManager.Instance.GetContainerHomeUrl(Id);
+        }
+
+        private void SetProperty<T>(ref T storage, T value, string propertyName)
+        {
+            if (Equals(storage, value))
+            {
+                return;
+            }
+
+            storage = value;
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));
+        }
     }
 }
