@@ -341,8 +341,119 @@
 setWinUIHostMaterial('mica');
 setWinUIHostMaterial('acrylic');</value>
   </data>
+  <data name="WebShellBridgeCard.Header" xml:space="preserve"><value>Calling the host</value></data>
+  <data name="WebShellBridgeCard.Description" xml:space="preserve"><value>The host injects a Promise API: it returns a result, null when cancelled, and throws Error on failure</value></data>
+  <data name="WebShellBridgeScriptBox.Text" xml:space="preserve"><value>const result = await window.winuiHost.invoke(
+  'actionName',
+  { key: 'value' }
+);</value></data>
+  <data name="WebPinApiCard.Header" xml:space="preserve"><value>Pin to Start</value></data>
+  <data name="WebPinApiCard.Description" xml:space="preserve"><value>Pin the current web container as a Start tile</value></data>
+  <data name="WebPinApiScriptBox.Text" xml:space="preserve"><value>const pinned = await winuiHost.invoke('pinToStart');</value></data>
+  <data name="WebShortcutApiCard.Header" xml:space="preserve"><value>Create desktop shortcut</value></data>
+  <data name="WebShortcutApiCard.Description" xml:space="preserve"><value>Create a .lnk shortcut for the current web container through Desktop Bridge</value></data>
+  <data name="WebShortcutApiScriptBox.Text" xml:space="preserve"><value>const created = await winuiHost.invoke('createDesktopShortcut');</value></data>
+  <data name="WebPickFileApiCard.Header" xml:space="preserve"><value>Pick a file</value></data>
+  <data name="WebPickFileApiCard.Description" xml:space="preserve"><value>Open the system file picker and return the name, path, and size</value></data>
+  <data name="WebPickFileApiScriptBox.Text" xml:space="preserve"><value>const file = await winuiHost.invoke('pickFile');</value></data>
+  <data name="WebPickFolderApiCard.Header" xml:space="preserve"><value>Pick a folder</value></data>
+  <data name="WebPickFolderApiCard.Description" xml:space="preserve"><value>Open the system folder picker and return the name and path</value></data>
+  <data name="WebPickFolderApiScriptBox.Text" xml:space="preserve"><value>const folder = await winuiHost.invoke('pickFolder');</value></data>
+  <data name="WebSaveFileApiCard.Header" xml:space="preserve"><value>Save a text file</value></data>
+  <data name="WebSaveFileApiCard.Description" xml:space="preserve"><value>Open the system Save dialog and write text supplied by the web app</value></data>
+  <data name="WebSaveFileApiScriptBox.Text" xml:space="preserve"><value>const file = await winuiHost.invoke('saveTextFile', {
+  suggestedName: 'notes.txt',
+  text: 'Hello from the web app'
+});</value></data>
+  <data name="WebLibrariesApiCard.Header" xml:space="preserve"><value>System media and storage libraries</value></data>
+  <data name="WebLibrariesApiCard.Description" xml:space="preserve"><value>List the first 100 items in Music, Pictures, Videos, 3D Objects, or removable storage</value></data>
+  <data name="WebLibrariesApiScriptBox.Text" xml:space="preserve"><value>const files = await winuiHost.invoke('listLibraryFiles', {
+  library: 'pictures'
+});
+// music | pictures | videos | objects3D | removableStorage</value></data>
+  <data name="WebEnterpriseApiCard.Header" xml:space="preserve"><value>Enterprise-authenticated request</value></data>
+  <data name="WebEnterpriseApiCard.Description" xml:space="preserve"><value>Ask the host to request a same-origin HTTPS resource with the current Windows enterprise credentials; response bodies are limited to 1 MB</value></data>
+  <data name="WebEnterpriseApiScriptBox.Text" xml:space="preserve"><value>const response = await winuiHost.invoke('enterpriseFetch', {
+  url: 'https://intranet.example.com/api/profile'
+});</value></data>
+  <data name="WebContactApiCard.Header" xml:space="preserve"><value>Pick a contact</value></data>
+  <data name="WebContactApiCard.Description" xml:space="preserve"><value>Open the contact picker and return the name, phone numbers, and email addresses</value></data>
+  <data name="WebContactApiScriptBox.Text" xml:space="preserve"><value>const contact = await winuiHost.invoke('pickContact');</value></data>
+  <data name="WebPhoneApiCard.Header" xml:space="preserve"><value>Make a phone call</value></data>
+  <data name="WebPhoneApiCard.Description" xml:space="preserve"><value>Open the Windows phone-call confirmation UI</value></data>
+  <data name="WebPhoneApiScriptBox.Text" xml:space="preserve"><value>await winuiHost.invoke('makePhoneCall', {
+  number: '10086',
+  displayName: 'Customer service'
+});</value></data>
+  <data name="WebSmsApiCard.Header" xml:space="preserve"><value>Compose an SMS</value></data>
+  <data name="WebSmsApiCard.Description" xml:space="preserve"><value>Open the system SMS composer with a recipient and body</value></data>
+  <data name="WebSmsApiScriptBox.Text" xml:space="preserve"><value>await winuiHost.invoke('composeSms', {
+  number: '10086',
+  text: 'Hello'
+});</value></data>
+  <data name="WebAppointmentApiCard.Header" xml:space="preserve"><value>Add an appointment</value></data>
+  <data name="WebAppointmentApiCard.Description" xml:space="preserve"><value>Open the system calendar confirmation UI with appointment details</value></data>
+  <data name="WebAppointmentApiScriptBox.Text" xml:space="preserve"><value>const id = await winuiHost.invoke('addAppointment', {
+  subject: 'Meeting',
+  startTime: new Date().toISOString(),
+  durationMinutes: 30,
+  location: 'Meeting room',
+  details: 'Project sync'
+});</value></data>
+  <data name="WebTaskApiCard.Header" xml:space="preserve"><value>Add a task</value></data>
+  <data name="WebTaskApiCard.Description" xml:space="preserve"><value>Write a to-do item to a Windows user task list</value></data>
+  <data name="WebTaskApiScriptBox.Text" xml:space="preserve"><value>const id = await winuiHost.invoke('addTask', {
+  subject: 'Finish report',
+  details: 'Before the end of today'
+});</value></data>
+  <data name="WebPhoneHistoryApiCard.Header" xml:space="preserve"><value>Read call history</value></data>
+  <data name="WebPhoneHistoryApiCard.Description" xml:space="preserve"><value>Read the latest 50 system call-history entries on devices with phone support</value></data>
+  <data name="WebPhoneHistoryApiScriptBox.Text" xml:space="preserve"><value>const calls = await winuiHost.invoke('getPhoneCallHistory');</value></data>
+  <data name="WebCertificateApiCard.Header" xml:space="preserve"><value>Shared user certificates</value></data>
+  <data name="WebCertificateApiCard.Description" xml:space="preserve"><value>Read certificate subjects, issuers, validity, and private-key availability</value></data>
+  <data name="WebCertificateApiScriptBox.Text" xml:space="preserve"><value>const certificates = await winuiHost.invoke(
+  'getSharedUserCertificates'
+);</value></data>
+  <data name="WebUserInfoApiCard.Header" xml:space="preserve"><value>User account information</value></data>
+  <data name="WebUserInfoApiCard.Description" xml:space="preserve"><value>Read the Windows user display name, domain, and principal name</value></data>
+  <data name="WebUserInfoApiScriptBox.Text" xml:space="preserve"><value>const user = await winuiHost.invoke('getUserAccountInfo');</value></data>
+  <data name="WebNotificationsApiCard.Header" xml:space="preserve"><value>User notifications</value></data>
+  <data name="WebNotificationsApiCard.Description" xml:space="preserve"><value>Request user access and read metadata for the latest 50 toast notifications</value></data>
+  <data name="WebNotificationsApiScriptBox.Text" xml:space="preserve"><value>const notifications = await winuiHost.invoke(
+  'getNotifications'
+);</value></data>
+  <data name="WebGraphicsCaptureApiCard.Header" xml:space="preserve"><value>Pick a graphics-capture target</value></data>
+  <data name="WebGraphicsCaptureApiCard.Description" xml:space="preserve"><value>Open the Windows graphics capture picker and return information about the selected window or display</value></data>
+  <data name="WebGraphicsCaptureApiScriptBox.Text" xml:space="preserve"><value>const target = await winuiHost.invoke('pickGraphicsCapture');</value></data>
   <data name="PinContainerText.Text" xml:space="preserve">
     <value>Pin current site to Start</value>
+  </data>
+  <data name="DesktopShortcutText.Text" xml:space="preserve">
+    <value>Create desktop shortcut for current site</value>
+  </data>
+  <data name="DesktopShortcutButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Create desktop shortcut</value>
+  </data>
+  <data name="JumpListCreateDesktopShortcutDisplayName" xml:space="preserve">
+    <value>Create desktop shortcut</value>
+  </data>
+  <data name="JumpListCreateDesktopShortcutDescription" xml:space="preserve">
+    <value>Choose a container and create a desktop shortcut for it</value>
+  </data>
+  <data name="CreateDesktopShortcutDialogTitle" xml:space="preserve">
+    <value>Create desktop shortcut</value>
+  </data>
+  <data name="CreateDesktopShortcutDialogPrimaryButtonText" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="CreateDesktopShortcutDialogSecondaryButtonText" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="CreateDesktopShortcutDialogMessage.Text" xml:space="preserve">
+    <value>Choose the container to create a shortcut for.</value>
+  </data>
+  <data name="CreateDesktopShortcutDialogEmptyText.Text" xml:space="preserve">
+    <value>There are no containers that can have a desktop shortcut yet. Pin or create a web container first.</value>
   </data>
   <data name="PinUnavailableInfoButton.ToolTipService.ToolTip" xml:space="preserve">
     <value>Details</value>
@@ -622,6 +733,9 @@ setWinUIHostMaterial('acrylic');</value>
   </data>
   <data name="ContainerUnpinButtonToolTip" xml:space="preserve">
     <value>Unpin from Start</value>
+  </data>
+  <data name="ContainerDesktopShortcutButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>Create desktop shortcut</value>
   </data>
   <data name="ContainerDeleteButton.ToolTipService.ToolTip" xml:space="preserve">
     <value>Delete container</value>

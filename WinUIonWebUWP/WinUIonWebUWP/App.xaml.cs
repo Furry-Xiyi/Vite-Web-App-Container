@@ -12,6 +12,7 @@ using Windows.ApplicationModel.Resources;
 using Windows.Storage;
 using Windows.UI;
 using Windows.UI.Core;
+using Windows.UI.StartScreen;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -32,6 +33,7 @@ namespace WinUIonWebUWP
         protected override async void OnLaunched(LaunchActivatedEventArgs args)
         {
             var launchedContainerId = SettingsManager.Instance.GetContainerIdFromLaunchArguments(args.Arguments);
+            var launchAction = SettingsManager.Instance.GetLaunchActionFromArguments(args.Arguments);
             if (!string.IsNullOrWhiteSpace(launchedContainerId)
                 && SettingsManager.Instance.HasContainer(launchedContainerId)
                 && Window.Current.Content != null)
@@ -69,6 +71,7 @@ namespace WinUIonWebUWP
                 var currentMainPage = MainPage.Current;
                 var defaultContainerId = SettingsManager.Instance.PrimaryContainerId;
                 if (currentMainPage != null
+                    && !string.Equals(launchAction, "createDesktopShortcut", StringComparison.OrdinalIgnoreCase)
                     && currentMainPage.ContainerId != defaultContainerId
                     && SettingsManager.Instance.HasContainer(defaultContainerId))
                 {
@@ -80,7 +83,100 @@ namespace WinUIonWebUWP
             Window.Current.Activate();
             if (rootFrame.Content is MainPage mainPage)
             {
+                await ConfigureJumpListAsync();
+                if (string.Equals(launchAction, "createDesktopShortcut", StringComparison.OrdinalIgnoreCase))
+                {
+                    await mainPage.ShowCreateDesktopShortcutDialogAsync();
+                }
+
                 await mainPage.CheckDownloadAccessOnFirstLaunchAsync();
+            }
+        }
+
+        protected override async void OnActivated(IActivatedEventArgs args)
+        {
+            if (args is ProtocolActivatedEventArgs protocolArgs
+                && TryGetProtocolContainerId(protocolArgs.Uri) is string containerId
+                && SettingsManager.Instance.HasContainer(containerId))
+            {
+                await ActivateContainerFromExternalLaunchAsync(containerId);
+                return;
+            }
+
+            base.OnActivated(args);
+        }
+
+        private static async System.Threading.Tasks.Task ActivateContainerFromExternalLaunchAsync(string containerId)
+        {
+            if (Window.Current.Content != null)
+            {
+                await LaunchContainerInNewViewAsync(containerId);
+                return;
+            }
+
+            MainPage.SetPendingContainerId(containerId);
+            var rootFrame = new Frame();
+            Window.Current.Content = rootFrame;
+
+            AppThemeManager.LoadSettings(containerId);
+            AppThemeManager.ApplyTheme();
+            AppThemeManager.ApplyMaterial();
+
+            rootFrame.Navigate(typeof(MainPage));
+            Window.Current.Activate();
+        }
+
+        private static string? TryGetProtocolContainerId(Uri uri)
+        {
+            if (!string.Equals(uri.Scheme, "winuionweb", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            if (string.Equals(uri.Host, "container", StringComparison.OrdinalIgnoreCase))
+            {
+                var pathId = Uri.UnescapeDataString(uri.AbsolutePath.Trim('/'));
+                if (!string.IsNullOrWhiteSpace(pathId))
+                {
+                    return pathId;
+                }
+            }
+
+            return SettingsManager.Instance.GetContainerIdFromLaunchArguments(uri.Query);
+        }
+
+        private static async System.Threading.Tasks.Task ConfigureJumpListAsync()
+        {
+            if (!JumpList.IsSupported())
+            {
+                return;
+            }
+
+            try
+            {
+                var loader = new ResourceLoader();
+                var jumpList = await JumpList.LoadCurrentAsync();
+                for (var index = jumpList.Items.Count - 1; index >= 0; index--)
+                {
+                    if (string.Equals(
+                        jumpList.Items[index].Arguments,
+                        "action=createDesktopShortcut",
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        jumpList.Items.RemoveAt(index);
+                    }
+                }
+
+                var item = JumpListItem.CreateWithArguments(
+                    "action=createDesktopShortcut",
+                    loader.GetString("JumpListCreateDesktopShortcutDisplayName"));
+                item.Description = loader.GetString("JumpListCreateDesktopShortcutDescription");
+                jumpList.Items.Add(item);
+                await jumpList.SaveAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[WinUIonWeb JumpList] Configure failed: {ex.Message}");
             }
         }
 
@@ -385,6 +481,7 @@ namespace WinUIonWebUWP
     [JsonSerializable(typeof(WebContainer))]
     [JsonSerializable(typeof(SitePermissionSetting))]
     [JsonSerializable(typeof(DownloadHistoryEntry))]
+    [JsonSerializable(typeof(DesktopShortcutRequest))]
     internal sealed partial class AppSettingsJsonContext : JsonSerializerContext { }
 
     // ── 设置管理器（与 App.xaml.cs 同文件，无需单独类文件）─────────
@@ -638,6 +735,12 @@ namespace WinUIonWebUWP
         public string GetContainerSiteName(string containerId)
         {
             var container = GetContainerOrDefault(containerId);
+            var displayName = container.DisplayName?.Trim();
+            if (!string.IsNullOrWhiteSpace(displayName))
+            {
+                return displayName;
+            }
+
             var manifestName = container.ManifestName?.Trim();
             if (!string.IsNullOrWhiteSpace(manifestName))
             {
@@ -648,12 +751,6 @@ namespace WinUIonWebUWP
             if (!string.IsNullOrWhiteSpace(documentTitle))
             {
                 return documentTitle;
-            }
-
-            var displayName = container.DisplayName?.Trim();
-            if (!string.IsNullOrWhiteSpace(displayName))
-            {
-                return displayName;
             }
 
             return new ResourceLoader().GetString("AppDisplayName");
@@ -1067,6 +1164,11 @@ namespace WinUIonWebUWP
             return TryGetLaunchArgument(arguments, "containerId");
         }
 
+        public string? GetLaunchActionFromArguments(string? arguments)
+        {
+            return TryGetLaunchArgument(arguments, "action");
+        }
+
         public bool ActivateContainer(string containerId)
         {
             EnsureContainers();
@@ -1454,6 +1556,14 @@ namespace WinUIonWebUWP
         public long TotalBytesToReceive { get; set; }
         public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
         public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+    }
+
+    public sealed class DesktopShortcutRequest
+    {
+        public string ContainerId { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public string LaunchUri { get; set; } = "";
+        public string IconPngPath { get; set; } = "";
     }
 
     public sealed class TransparentCssRule

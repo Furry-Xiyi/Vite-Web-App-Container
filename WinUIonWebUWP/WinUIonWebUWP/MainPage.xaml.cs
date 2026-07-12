@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Web.WebView2.Core;
 using WinUIonWebUWP.Pages;
@@ -15,6 +16,7 @@ using Windows.ApplicationModel.Core;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.ApplicationModel.Resources;
 using Windows.Graphics.Imaging;
+using Windows.Security.Authorization.AppCapabilityAccess;
 using Windows.Storage;
 using Windows.Storage.AccessCache;
 using Windows.Storage.FileProperties;
@@ -70,6 +72,7 @@ namespace WinUIonWebUWP
         private bool _isHostedPageLoaded;
         private Type? _currentSettingsPageType;
         private bool _isDownloadAccessDialogOpen;
+        private bool _hasCheckedDownloadAccess;
         private string _pinCandidateUrl = "";
         private double _titleBarLeftInset;
         private double _titleBarRightInset = 48;
@@ -698,9 +701,10 @@ namespace WinUIonWebUWP
             return string.IsNullOrWhiteSpace(firstLabel) ? host : firstLabel;
         }
 
-        private void MainPage_Loaded(object sender, RoutedEventArgs e)
+        private async void MainPage_Loaded(object sender, RoutedEventArgs e)
         {
             ApplySettings();
+            await CheckDownloadAccessOnFirstLaunchAsync();
         }
 
         public void ApplySettings()
@@ -932,6 +936,7 @@ namespace WinUIonWebUWP
                 _hostedDocumentIconCandidates = iconUri == null ? Array.Empty<Uri>() : new[] { iconUri! };
             }
             System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Tile] Document icon candidates: {string.Join(", ", _hostedDocumentIconCandidates.Select(item => item.AbsoluteUri))}");
+            UpdatePinContainerState();
 
             if (_isHostedPageLoaded)
             {
@@ -961,6 +966,7 @@ namespace WinUIonWebUWP
             {
                 ApplyHostedDocumentInfo();
             }
+            UpdatePinContainerState();
         }
 
         private void ApplyHostedDocumentInfo()
@@ -1031,8 +1037,10 @@ namespace WinUIonWebUWP
                 UrlAutoSuggestBox.Text = isLauncherContainer ? "" : ContainerHomeUrl;
                 RefreshUrlHistoryItems();
             }
-            SiteActionsTopDivider.Visibility = isLauncherContainer ? Visibility.Collapsed : Visibility.Visible;
-            SitePermissionsEntryButton.Visibility = isLauncherContainer ? Visibility.Collapsed : Visibility.Visible;
+            var showSiteActions = !isLauncherContainer;
+            SiteActionsTopDivider.Visibility = showSiteActions ? Visibility.Visible : Visibility.Collapsed;
+            SitePermissionsEntryButton.Visibility = showSiteActions ? Visibility.Visible : Visibility.Collapsed;
+            DesktopShortcutButton.Visibility = showSiteActions ? Visibility.Visible : Visibility.Collapsed;
             UrlAutoSuggestBox.IsSuggestionListOpen = false;
             UrlAutoSuggestBox.IsEnabled = false;
             HideUrlError();
@@ -1339,6 +1347,21 @@ namespace WinUIonWebUWP
             UpdatePinContainerState();
         }
 
+        private async void DesktopShortcutButton_Click(object sender, RoutedEventArgs e)
+        {
+            var containerId = await EnsureCurrentPageContainerForShellAsync();
+            if (string.IsNullOrWhiteSpace(containerId))
+            {
+                UrlErrorText.Visibility = Visibility.Visible;
+                return;
+            }
+
+            if (await CreateDesktopShortcutForContainerAsync(containerId))
+            {
+                await HideMoreFlyoutAsync();
+            }
+        }
+
         private async Task HideMoreFlyoutAsync()
         {
             if (Dispatcher.HasThreadAccess)
@@ -1617,23 +1640,52 @@ namespace WinUIonWebUWP
 
         private void UpdatePinContainerStateCore()
         {
-            if (PinContainerRow == null)
+            if (PinContainerRow == null
+                || DesktopShortcutButton == null
+                || SiteShortcutActionsPanel == null)
             {
                 return;
             }
 
+            var canCreateShortcut = CanCreateDesktopShortcutForCurrentPage();
+            DesktopShortcutButton.IsEnabled = canCreateShortcut;
+
             if (IsPrimaryContainer)
             {
+                SiteShortcutActionsPanel.Visibility = Visibility.Collapsed;
                 PinContainerRow.Visibility = Visibility.Collapsed;
+                DesktopShortcutButton.Visibility = Visibility.Collapsed;
                 PinUnavailableInfoButton.Visibility = Visibility.Collapsed;
                 return;
             }
 
             var isAlreadyPinned = GetPinnedContainerIdForCurrentSite() != null;
 
+            SiteShortcutActionsPanel.Visibility = Visibility.Visible;
+            DesktopShortcutButton.Visibility = Visibility.Visible;
             PinContainerRow.Visibility = isAlreadyPinned ? Visibility.Collapsed : Visibility.Visible;
             PinContainerButton.IsEnabled = _isHostedPageLoaded;
             PinUnavailableInfoButton.Visibility = _isHostedPageLoaded ? Visibility.Collapsed : Visibility.Visible;
+        }
+
+        private bool CanCreateDesktopShortcutForCurrentPage()
+        {
+            if (!_isHostedPageLoaded)
+            {
+                return false;
+            }
+
+            var hasWebName = !string.IsNullOrWhiteSpace(_hostedManifestName)
+                || !string.IsNullOrWhiteSpace(_hostedDocumentTitle)
+                || (!IsPrimaryContainer && !string.IsNullOrWhiteSpace(SettingsManager.Instance.GetContainerDisplayName(_containerId)));
+            if (!hasWebName)
+            {
+                return false;
+            }
+
+            return _hostedDocumentIconCandidates.Count > 0
+                || _hostedDocumentIconUri != null
+                || (!IsPrimaryContainer && !string.IsNullOrWhiteSpace(SettingsManager.Instance.GetContainerIconPath(_containerId)));
         }
 
         private void ShowPinUnavailableTeachingTip()
@@ -1677,8 +1729,27 @@ namespace WinUIonWebUWP
 
         public async Task CheckDownloadAccessOnFirstLaunchAsync()
         {
-            if (SettingsManager.Instance.HasShownDownloadAccessPrompt
-                || await CanAccessDownloadFolderAsync())
+            if (_hasCheckedDownloadAccess)
+            {
+                return;
+            }
+
+            _hasCheckedDownloadAccess = true;
+            if (await CanAccessDownloadFolderAsync())
+            {
+                return;
+            }
+
+            var capability = AppCapability.Create("broadFileSystemAccess");
+            var accessStatus = capability.CheckAccess();
+            if (accessStatus == AppCapabilityAccessStatus.UserPromptRequired)
+            {
+                accessStatus = await capability.RequestAccessAsync();
+            }
+
+            System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Download] broadFileSystemAccess status: {accessStatus}");
+            if (accessStatus == AppCapabilityAccessStatus.Allowed
+                && await CanAccessDownloadFolderAsync())
             {
                 return;
             }
@@ -2688,7 +2759,19 @@ namespace WinUIonWebUWP
             if (!string.IsNullOrWhiteSpace(icons.Square150Path))
             {
                 SettingsManager.Instance.UpdateContainerIcon(_containerId, icons.Square150Path);
-                ImgAppIcon.Source = new BitmapImage(SettingsManager.Instance.GetContainerIconUri(_containerId));
+                var iconPath = ResolveLocalStatePath(icons.Square150Path);
+                try
+                {
+                    var iconFile = await StorageFile.GetFileFromPathAsync(iconPath);
+                    using var iconStream = await iconFile.OpenReadAsync();
+                    var bitmap = new BitmapImage();
+                    await bitmap.SetSourceAsync(iconStream);
+                    ImgAppIcon.Source = bitmap;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Icon] Load refreshed container icon failed: {ex.Message}");
+                }
             }
         }
 
@@ -2700,7 +2783,8 @@ namespace WinUIonWebUWP
                 return false;
             }
 
-            if (string.Equals(_containerId, containerId, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(_containerId, containerId, StringComparison.OrdinalIgnoreCase)
+                && string.IsNullOrWhiteSpace(SettingsManager.Instance.GetContainerIconPath(containerId)))
             {
                 await RefreshCurrentContainerIconAsync();
             }
@@ -2709,7 +2793,7 @@ namespace WinUIonWebUWP
             var iconPath = SettingsManager.Instance.GetContainerIconPath(containerId);
             var tileIcons = string.IsNullOrWhiteSpace(iconPath)
                 ? TileIconSet.Empty
-                : new TileIconSet(iconPath, "", "", "", "");
+                : CreateTileIconSetFromStoredIconPath(iconPath);
             var logoUri = string.IsNullOrWhiteSpace(iconPath)
                 ? GetDefaultTileLogoUri()
                 : CreateLocalUri(iconPath);
@@ -2741,6 +2825,141 @@ namespace WinUIonWebUWP
                 System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Tile] Managed secondary tile request failed: 0x{ex.HResult:X8} {ex.Message}");
                 return SecondaryTile.Exists(containerId);
             }
+        }
+
+        public async Task<bool> PinCurrentPageToStartAsync()
+        {
+            var containerId = await EnsureCurrentPageContainerForShellAsync();
+            return !string.IsNullOrWhiteSpace(containerId)
+                && await PinExistingContainerToStartAsync(containerId);
+        }
+
+        public async Task<bool> CreateDesktopShortcutForCurrentPageAsync()
+        {
+            var containerId = await EnsureCurrentPageContainerForShellAsync();
+            return !string.IsNullOrWhiteSpace(containerId)
+                && await CreateDesktopShortcutForContainerAsync(containerId);
+        }
+
+        public async Task ShowCreateDesktopShortcutDialogAsync()
+        {
+            var dialog = new Dialogs.CreateDesktopShortcutDialog(SettingsManager.Instance.Containers);
+            var result = await dialog.ShowAsync();
+            if (result == ContentDialogResult.Primary
+                && !string.IsNullOrWhiteSpace(dialog.SelectedContainerId))
+            {
+                await CreateDesktopShortcutForContainerAsync(dialog.SelectedContainerId);
+            }
+        }
+
+        public async Task<bool> CreateDesktopShortcutForContainerAsync(string containerId)
+        {
+            if (!SettingsManager.Instance.HasContainer(containerId)
+                || SettingsManager.Instance.IsDefaultContainer(containerId))
+            {
+                return false;
+            }
+
+            if (string.Equals(_containerId, containerId, StringComparison.OrdinalIgnoreCase)
+                && string.IsNullOrWhiteSpace(SettingsManager.Instance.GetContainerIconPath(containerId)))
+            {
+                await RefreshCurrentContainerIconAsync();
+            }
+
+            var iconPngPath = ResolveLocalStatePath(SettingsManager.Instance.GetContainerIconPath(containerId));
+            var request = new DesktopShortcutRequest
+            {
+                ContainerId = containerId,
+                DisplayName = SettingsManager.Instance.GetContainerDisplayName(containerId),
+                LaunchUri = $"winuionweb://container/{Uri.EscapeDataString(containerId)}",
+                IconPngPath = iconPngPath
+            };
+
+            try
+            {
+                var json = JsonSerializer.Serialize(request, AppSettingsJsonContext.Default.DesktopShortcutRequest);
+                var requestPath = Path.Combine(ApplicationData.Current.LocalFolder.Path, "desktop-shortcut-request.json");
+                File.WriteAllText(requestPath, json);
+                await FullTrustProcessLauncher.LaunchFullTrustProcessForCurrentAppAsync("CreateShortcut");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WinUIonWeb Shortcut] Desktop shortcut request failed: {ex.Message}");
+                return false;
+            }
+        }
+
+        private async Task<string?> EnsureCurrentPageContainerForShellAsync()
+        {
+            if (!SettingsManager.Instance.IsDefaultContainer(_containerId))
+            {
+                return _containerId;
+            }
+
+            if (!_isHostedPageLoaded)
+            {
+                return null;
+            }
+
+            var url = GetContainerPage()?.CurrentUrl ?? ContainerHomeUrl;
+            if (!IsSupportedUrl(url))
+            {
+                return null;
+            }
+
+            var displayName = GetTileDisplayName().Trim();
+            if (string.IsNullOrWhiteSpace(displayName))
+            {
+                displayName = new Uri(url).Host;
+            }
+
+            var tileIcons = await PrepareHostedTileIconsAsync();
+            var container = SettingsManager.Instance.CreateOrUpdateContainer(displayName, url, tileIcons.Square150Path, activate: false);
+            if (!string.IsNullOrWhiteSpace(tileIcons.Square150Path))
+            {
+                SettingsManager.Instance.UpdateContainerIcon(container.Id, tileIcons.Square150Path);
+            }
+
+            return container.Id;
+        }
+
+        private static string ResolveLocalStatePath(string relativePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativePath))
+            {
+                return "";
+            }
+
+            if (Path.IsPathRooted(relativePath))
+            {
+                return relativePath;
+            }
+
+            return Path.Combine(
+                ApplicationData.Current.LocalFolder.Path,
+                relativePath.Replace('/', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar));
+        }
+
+        private static TileIconSet CreateTileIconSetFromStoredIconPath(string square150Path)
+        {
+            var square70Path = GetSiblingTileIconPath(square150Path, ".square70.png");
+            var square71Path = GetSiblingTileIconPath(square150Path, ".square71.png");
+            var square44Path = GetSiblingTileIconPath(square150Path, ".square44.png");
+            var square30Path = GetSiblingTileIconPath(square150Path, ".square30.png");
+            return new TileIconSet(square150Path, square70Path, square71Path, square44Path, square30Path);
+        }
+
+        private static string GetSiblingTileIconPath(string square150Path, string suffix)
+        {
+            const string square150Suffix = ".square150.png";
+            if (!square150Path.EndsWith(square150Suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                return "";
+            }
+
+            var candidate = square150Path.Substring(0, square150Path.Length - square150Suffix.Length) + suffix;
+            return File.Exists(ResolveLocalStatePath(candidate)) ? candidate : "";
         }
 
         private async Task<TileIconSet> PrepareHostedTileIconsAsync()
@@ -3035,6 +3254,10 @@ namespace WinUIonWebUWP
             if (!string.IsNullOrWhiteSpace(icons.Square44Path))
             {
                 tile.VisualElements.Square44x44Logo = CreateLocalUri(icons.Square44Path);
+            }
+            else
+            {
+                tile.VisualElements.Square44x44Logo = CreateLocalUri(icons.Square150Path);
             }
             if (!string.IsNullOrWhiteSpace(icons.Square30Path))
             {

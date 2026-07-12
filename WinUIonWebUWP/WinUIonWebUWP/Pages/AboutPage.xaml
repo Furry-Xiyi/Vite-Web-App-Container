@@ -6,6 +6,18 @@
     xmlns:pages="using:WinUIonWebUWP.Pages"
     xmlns:controls="using:CommunityToolkit.WinUI.Controls">
 
+    <Page.Resources>
+        <Style x:Key="ShellApiCodeBoxStyle" TargetType="TextBox">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="AcceptsReturn" Value="True"/>
+            <Setter Property="TextWrapping" Value="NoWrap"/>
+            <Setter Property="FontFamily" Value="Consolas"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="MinHeight" Value="76"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+        </Style>
+    </Page.Resources>
+
     <Grid Background="Transparent">
         <ScrollViewer Padding="20,0,20,20"
                       Background="Transparent">
@@ -366,6 +378,61 @@
                                              FontSize="12"
                                              MinHeight="128"
                                              HorizontalAlignment="Stretch"/>
+                                </controls:SettingsCard>
+
+                                <controls:SettingsCard x:Uid="WebShellBridgeCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebShellBridgeScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebPinApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebPinApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebShortcutApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebShortcutApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebPickFileApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebPickFileApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebPickFolderApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebPickFolderApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebSaveFileApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebSaveFileApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebLibrariesApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebLibrariesApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebEnterpriseApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebEnterpriseApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebContactApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebContactApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebPhoneApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebPhoneApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebSmsApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebSmsApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebAppointmentApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebAppointmentApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebTaskApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebTaskApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebPhoneHistoryApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebPhoneHistoryApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebCertificateApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebCertificateApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebUserInfoApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebUserInfoApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebNotificationsApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebNotificationsApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
+                                </controls:SettingsCard>
+                                <controls:SettingsCard x:Uid="WebGraphicsCaptureApiCard" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                    <TextBox x:Uid="WebGraphicsCaptureApiScriptBox" Style="{StaticResource ShellApiCodeBoxStyle}"/>
                                 </controls:SettingsCard>
                             </StackPanel>
                         </controls:SettingsExpander.ItemsHeader>

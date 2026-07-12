@@ -168,13 +168,15 @@ namespace WinUIonWebUWP.Pages
                 return;
             }
 
+            displayName = displayName.Trim();
+            homeUrl = homeUrl.Trim();
+            item.ApplySavedValues(displayName, homeUrl);
             SettingsManager.Instance.UpdateContainer(containerId, displayName, homeUrl);
             if (MainPage.Current?.ContainerId == containerId)
             {
                 MainPage.Current.RefreshContainerIdentity();
             }
 
-            item.RefreshFromSettings(homeUrl);
             await Task.CompletedTask;
         }
 
@@ -297,6 +299,17 @@ namespace WinUIonWebUWP.Pages
             }
 
             RefreshContainers();
+        }
+
+        private async void CreateDesktopShortcutButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (GetContainerId(sender) is not string containerId
+                || MainPage.Current is not MainPage mainPage)
+            {
+                return;
+            }
+
+            await mainPage.CreateDesktopShortcutForContainerAsync(containerId);
         }
 
         private async void DeleteContainerButton_Click(object sender, RoutedEventArgs e)
@@ -530,6 +543,18 @@ namespace WinUIonWebUWP.Pages
             ManifestSummary = string.IsNullOrWhiteSpace(manifestName)
                 ? GetResourceString("ContainerDiagnosticManifestMissing")
                 : manifestName;
+        }
+
+        public void ApplySavedValues(string displayName, string homeUrl)
+        {
+            DisplayName = displayName;
+            HomeUrl = homeUrl;
+            EditDisplayName = displayName;
+            EditHomeUrl = homeUrl;
+            DiagnosticCurrentUrl = IsCurrentContainer
+                ? MainPage.Current?.GetContainerPageForSettings()?.CurrentUrl ?? homeUrl
+                : homeUrl;
+            DiagnosticOrigin = GetOrigin(DiagnosticCurrentUrl);
         }
 
         public string CreateDiagnosticsText()

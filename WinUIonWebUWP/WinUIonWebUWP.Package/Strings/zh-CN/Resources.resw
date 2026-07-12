@@ -341,8 +341,119 @@
 setWinUIHostMaterial('mica');
 setWinUIHostMaterial('acrylic');</value>
   </data>
+  <data name="WebShellBridgeCard.Header" xml:space="preserve"><value>调用方式</value></data>
+  <data name="WebShellBridgeCard.Description" xml:space="preserve"><value>宿主已注入 Promise 接口；成功返回结果，取消返回 null，失败抛出 Error</value></data>
+  <data name="WebShellBridgeScriptBox.Text" xml:space="preserve"><value>const result = await window.winuiHost.invoke(
+  'actionName',
+  { key: 'value' }
+);</value></data>
+  <data name="WebPinApiCard.Header" xml:space="preserve"><value>固定到开始菜单</value></data>
+  <data name="WebPinApiCard.Description" xml:space="preserve"><value>将当前网页容器固定为开始菜单磁贴</value></data>
+  <data name="WebPinApiScriptBox.Text" xml:space="preserve"><value>const pinned = await winuiHost.invoke('pinToStart');</value></data>
+  <data name="WebShortcutApiCard.Header" xml:space="preserve"><value>创建桌面快捷方式</value></data>
+  <data name="WebShortcutApiCard.Description" xml:space="preserve"><value>通过桌面桥为当前网页容器创建 .lnk 快捷方式</value></data>
+  <data name="WebShortcutApiScriptBox.Text" xml:space="preserve"><value>const created = await winuiHost.invoke('createDesktopShortcut');</value></data>
+  <data name="WebPickFileApiCard.Header" xml:space="preserve"><value>选择文件</value></data>
+  <data name="WebPickFileApiCard.Description" xml:space="preserve"><value>打开系统文件选择器并返回名称、路径和大小</value></data>
+  <data name="WebPickFileApiScriptBox.Text" xml:space="preserve"><value>const file = await winuiHost.invoke('pickFile');</value></data>
+  <data name="WebPickFolderApiCard.Header" xml:space="preserve"><value>选择文件夹</value></data>
+  <data name="WebPickFolderApiCard.Description" xml:space="preserve"><value>打开系统文件夹选择器并返回名称和路径</value></data>
+  <data name="WebPickFolderApiScriptBox.Text" xml:space="preserve"><value>const folder = await winuiHost.invoke('pickFolder');</value></data>
+  <data name="WebSaveFileApiCard.Header" xml:space="preserve"><value>保存文本文件</value></data>
+  <data name="WebSaveFileApiCard.Description" xml:space="preserve"><value>打开系统保存对话框并写入网页提供的文本</value></data>
+  <data name="WebSaveFileApiScriptBox.Text" xml:space="preserve"><value>const file = await winuiHost.invoke('saveTextFile', {
+  suggestedName: 'notes.txt',
+  text: 'Hello from the web app'
+});</value></data>
+  <data name="WebLibrariesApiCard.Header" xml:space="preserve"><value>系统媒体与存储库</value></data>
+  <data name="WebLibrariesApiCard.Description" xml:space="preserve"><value>枚举音乐、图片、视频、3D 对象或可移动存储的前 100 个项目</value></data>
+  <data name="WebLibrariesApiScriptBox.Text" xml:space="preserve"><value>const files = await winuiHost.invoke('listLibraryFiles', {
+  library: 'pictures'
+});
+// music | pictures | videos | objects3D | removableStorage</value></data>
+  <data name="WebEnterpriseApiCard.Header" xml:space="preserve"><value>企业身份验证请求</value></data>
+  <data name="WebEnterpriseApiCard.Description" xml:space="preserve"><value>由宿主使用当前 Windows 企业凭据请求与网页同源的 HTTPS 资源，响应正文最多返回 1 MB</value></data>
+  <data name="WebEnterpriseApiScriptBox.Text" xml:space="preserve"><value>const response = await winuiHost.invoke('enterpriseFetch', {
+  url: 'https://intranet.example.com/api/profile'
+});</value></data>
+  <data name="WebContactApiCard.Header" xml:space="preserve"><value>选择联系人</value></data>
+  <data name="WebContactApiCard.Description" xml:space="preserve"><value>打开系统联系人选择器并返回姓名、电话和邮箱</value></data>
+  <data name="WebContactApiScriptBox.Text" xml:space="preserve"><value>const contact = await winuiHost.invoke('pickContact');</value></data>
+  <data name="WebPhoneApiCard.Header" xml:space="preserve"><value>拨打电话</value></data>
+  <data name="WebPhoneApiCard.Description" xml:space="preserve"><value>打开 Windows 电话确认界面</value></data>
+  <data name="WebPhoneApiScriptBox.Text" xml:space="preserve"><value>await winuiHost.invoke('makePhoneCall', {
+  number: '10086',
+  displayName: '中国移动'
+});</value></data>
+  <data name="WebSmsApiCard.Header" xml:space="preserve"><value>编写短信</value></data>
+  <data name="WebSmsApiCard.Description" xml:space="preserve"><value>打开系统短信编写界面并预填收件人和正文</value></data>
+  <data name="WebSmsApiScriptBox.Text" xml:space="preserve"><value>await winuiHost.invoke('composeSms', {
+  number: '10086',
+  text: 'Hello'
+});</value></data>
+  <data name="WebAppointmentApiCard.Header" xml:space="preserve"><value>添加日程</value></data>
+  <data name="WebAppointmentApiCard.Description" xml:space="preserve"><value>打开系统日历确认界面并预填日程</value></data>
+  <data name="WebAppointmentApiScriptBox.Text" xml:space="preserve"><value>const id = await winuiHost.invoke('addAppointment', {
+  subject: '会议',
+  startTime: new Date().toISOString(),
+  durationMinutes: 30,
+  location: '会议室',
+  details: '项目同步'
+});</value></data>
+  <data name="WebTaskApiCard.Header" xml:space="preserve"><value>添加任务</value></data>
+  <data name="WebTaskApiCard.Description" xml:space="preserve"><value>向 Windows 用户任务列表写入待办事项</value></data>
+  <data name="WebTaskApiScriptBox.Text" xml:space="preserve"><value>const id = await winuiHost.invoke('addTask', {
+  subject: '完成报告',
+  details: '今天下班前'
+});</value></data>
+  <data name="WebPhoneHistoryApiCard.Header" xml:space="preserve"><value>读取通话记录</value></data>
+  <data name="WebPhoneHistoryApiCard.Description" xml:space="preserve"><value>读取最近 50 条系统通话记录；仅支持具备电话能力的设备</value></data>
+  <data name="WebPhoneHistoryApiScriptBox.Text" xml:space="preserve"><value>const calls = await winuiHost.invoke('getPhoneCallHistory');</value></data>
+  <data name="WebCertificateApiCard.Header" xml:space="preserve"><value>共享用户证书</value></data>
+  <data name="WebCertificateApiCard.Description" xml:space="preserve"><value>读取用户证书的主题、颁发者、有效期和私钥可用状态</value></data>
+  <data name="WebCertificateApiScriptBox.Text" xml:space="preserve"><value>const certificates = await winuiHost.invoke(
+  'getSharedUserCertificates'
+);</value></data>
+  <data name="WebUserInfoApiCard.Header" xml:space="preserve"><value>用户账户信息</value></data>
+  <data name="WebUserInfoApiCard.Description" xml:space="preserve"><value>读取 Windows 用户显示名、域和主体名称</value></data>
+  <data name="WebUserInfoApiScriptBox.Text" xml:space="preserve"><value>const user = await winuiHost.invoke('getUserAccountInfo');</value></data>
+  <data name="WebNotificationsApiCard.Header" xml:space="preserve"><value>用户通知</value></data>
+  <data name="WebNotificationsApiCard.Description" xml:space="preserve"><value>请求用户授权并读取最近 50 条 Toast 通知元数据</value></data>
+  <data name="WebNotificationsApiScriptBox.Text" xml:space="preserve"><value>const notifications = await winuiHost.invoke(
+  'getNotifications'
+);</value></data>
+  <data name="WebGraphicsCaptureApiCard.Header" xml:space="preserve"><value>选择屏幕捕获目标</value></data>
+  <data name="WebGraphicsCaptureApiCard.Description" xml:space="preserve"><value>打开 Windows 图形捕获选择器并返回所选窗口或屏幕信息</value></data>
+  <data name="WebGraphicsCaptureApiScriptBox.Text" xml:space="preserve"><value>const target = await winuiHost.invoke('pickGraphicsCapture');</value></data>
   <data name="PinContainerText.Text" xml:space="preserve">
     <value>固定当前网页到开始菜单</value>
+  </data>
+  <data name="DesktopShortcutText.Text" xml:space="preserve">
+    <value>创建当前网页的桌面快捷方式</value>
+  </data>
+  <data name="DesktopShortcutButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>创建桌面快捷方式</value>
+  </data>
+  <data name="JumpListCreateDesktopShortcutDisplayName" xml:space="preserve">
+    <value>创建桌面快捷方式</value>
+  </data>
+  <data name="JumpListCreateDesktopShortcutDescription" xml:space="preserve">
+    <value>选择一个容器并为它创建桌面快捷方式</value>
+  </data>
+  <data name="CreateDesktopShortcutDialogTitle" xml:space="preserve">
+    <value>创建桌面快捷方式</value>
+  </data>
+  <data name="CreateDesktopShortcutDialogPrimaryButtonText" xml:space="preserve">
+    <value>创建</value>
+  </data>
+  <data name="CreateDesktopShortcutDialogSecondaryButtonText" xml:space="preserve">
+    <value>取消</value>
+  </data>
+  <data name="CreateDesktopShortcutDialogMessage.Text" xml:space="preserve">
+    <value>请选择要创建快捷方式的容器。</value>
+  </data>
+  <data name="CreateDesktopShortcutDialogEmptyText.Text" xml:space="preserve">
+    <value>当前没有可创建快捷方式的容器。请先固定或创建一个网页容器。</value>
   </data>
   <data name="PinUnavailableInfoButton.ToolTipService.ToolTip" xml:space="preserve">
     <value>详情</value>
@@ -622,6 +733,9 @@ setWinUIHostMaterial('acrylic');</value>
   </data>
   <data name="ContainerUnpinButtonToolTip" xml:space="preserve">
     <value>从开始菜单取消固定</value>
+  </data>
+  <data name="ContainerDesktopShortcutButton.ToolTipService.ToolTip" xml:space="preserve">
+    <value>创建桌面快捷方式</value>
   </data>
   <data name="ContainerDeleteButton.ToolTipService.ToolTip" xml:space="preserve">
     <value>删除容器</value>

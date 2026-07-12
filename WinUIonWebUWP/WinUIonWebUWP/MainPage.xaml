@@ -496,7 +496,7 @@
 
                             <StackPanel Margin="-15,0,-15,-15"
                                         Padding="2,2,2,2"
-                                        Spacing="2">
+                                        Spacing="0">
                                 <Border x:Name="SiteActionsTopDivider"
                                         Height="1"
                                         Margin="-12,0"
@@ -560,14 +560,16 @@
                                     </Grid>
                                 </Button>
 
-                                <Grid x:Name="PinContainerRow"
-                                      MinHeight="40">
+                                <StackPanel x:Name="SiteShortcutActionsPanel"
+                                            Spacing="0">
+                                    <Grid x:Name="PinContainerRow"
+                                          MinHeight="32">
                                     <Button x:Name="PinContainerButton"
                                             x:Uid="PinContainerButton"
                                             Canvas.ZIndex="0"
                                             HorizontalAlignment="Stretch"
                                             HorizontalContentAlignment="Stretch"
-                                            MinHeight="20"
+                                            MinHeight="32"
                                             Background="Transparent"
                                             BorderThickness="0"
                                             Click="PinContainerButton_Click">
@@ -617,7 +619,36 @@
                                             <TextBlock x:Uid="PinUnavailableTeachingTipActionText"/>
                                         </muxc:TeachingTip.CloseButtonContent>
                                     </muxc:TeachingTip>
-                                </Grid>
+                                    </Grid>
+
+                                    <Button x:Name="DesktopShortcutButton"
+                                            x:Uid="DesktopShortcutButton"
+                                            HorizontalAlignment="Stretch"
+                                            HorizontalContentAlignment="Stretch"
+                                            MinHeight="32"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Click="DesktopShortcutButton_Click">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <FontIcon Grid.Column="0"
+                                                      Glyph="&#xE71B;"
+                                                      FontSize="16"/>
+                                            <TextBlock Grid.Column="1"
+                                                       x:Uid="DesktopShortcutText"
+                                                       Margin="10,0,0,0"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Button>
+                                </StackPanel>
+
+                                <Border Height="1"
+                                        Margin="-12,0"
+                                        Background="{ThemeResource SystemControlForegroundBaseLowBrush}"
+                                        Opacity="0.6"/>
 
                                 <Button x:Name="SettingsEntryButton"
                                         x:Uid="SettingsEntryButton"

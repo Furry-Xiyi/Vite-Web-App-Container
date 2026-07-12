@@ -52,7 +52,7 @@
                                                     <TextBox x:Name="ContainerUrlBox"
                                                              Grid.Row="1"
                                                              x:Uid="ContainerUrlBox"
-                                                             Text="{x:Bind HomeUrl, Mode=OneWay}"
+                                                             Text="{x:Bind EditHomeUrl, Mode=OneWay}"
                                                              TextChanged="ContainerTextBox_TextChanged"/>
 
                                                     <StackPanel Grid.Row="2"
@@ -94,8 +94,17 @@
                                                                           Glyph="&#xE841;"
                                                                           Visibility="{x:Bind PinnedBadgeVisibility, Mode=OneWay}"
                                                                           HorizontalAlignment="Center"
-                                                                          VerticalAlignment="Center"/>
+                                                                                  VerticalAlignment="Center"/>
                                                             </Grid>
+                                                        </Button>
+                                                        <Button x:Uid="ContainerDesktopShortcutButton"
+                                                                Width="32"
+                                                                Height="32"
+                                                                Padding="0"
+                                                                Tag="{x:Bind Id, Mode=OneWay}"
+                                                                Click="CreateDesktopShortcutButton_Click">
+                                                            <FontIcon FontSize="14"
+                                                                      Glyph="&#xE71B;"/>
                                                         </Button>
                                                         <Button x:Uid="ContainerDeleteButton"
                                                                 Width="32"

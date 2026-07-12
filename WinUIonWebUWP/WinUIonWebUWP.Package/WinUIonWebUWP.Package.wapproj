@@ -97,6 +97,7 @@
       <SkipGetTargetFrameworkProperties>True</SkipGetTargetFrameworkProperties>
       <PublishProfile>Properties\PublishProfiles\win-$(Platform).pubxml</PublishProfile>
     </ProjectReference>
+    <ProjectReference Include="..\WinUIonWebUWP.ShortcutBridge\WinUIonWebUWP.ShortcutBridge.csproj" />
   </ItemGroup>
   <ItemGroup>
     <AppxManifest Include="Package.appxmanifest">

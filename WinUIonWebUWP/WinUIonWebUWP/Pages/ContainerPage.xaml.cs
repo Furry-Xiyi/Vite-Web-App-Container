@@ -9,12 +9,24 @@ using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using WinUIonWebUWP.Dialogs;
+using Windows.ApplicationModel.Appointments;
+using Windows.ApplicationModel.Calls;
+using Windows.ApplicationModel.Chat;
+using Windows.ApplicationModel.Contacts;
 using Windows.ApplicationModel.Resources;
+using Windows.ApplicationModel.UserDataTasks;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Graphics.Capture;
+using Windows.Security.Cryptography.Certificates;
+using Windows.Storage;
+using Windows.Storage.Pickers;
 using Windows.System;
+using Windows.System.UserProfile;
+using Windows.UI.Notifications.Management;
 using Windows.UI.Core;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -45,6 +57,28 @@ namespace WinUIonWebUWP.Pages
 
         private const string HostTitleBarScript = @"(()=>{
 window.__WINUI_ON_WEB_UWP_APP__=true;
+if(!window.winuiHost){
+  const pending=new Map();
+  window.chrome?.webview?.addEventListener('message',event=>{
+    const message=event.data;
+    if(!message||message.source!=='WinUIonWeb'||message.type!=='shellResult'||!message.requestId)return;
+    const request=pending.get(message.requestId);
+    if(!request)return;
+    pending.delete(message.requestId);
+    if(message.ok)request.resolve(message.result);
+    else request.reject(new Error(message.error||'Host command failed'));
+  });
+  window.winuiHost={
+    invoke(action,payload={}){
+      if(!window.chrome?.webview)return Promise.reject(new Error('WinUI host is unavailable'));
+      const requestId=crypto.randomUUID?.()||`${Date.now()}-${Math.random()}`;
+      return new Promise((resolve,reject)=>{
+        pending.set(requestId,{resolve,reject});
+        window.chrome.webview.postMessage({source:'WinUIonWeb',type:'shellCommand',requestId,action,payload});
+      });
+    }
+  };
+}
 const addHostClass=()=>{
   if(document.documentElement)document.documentElement.classList.add('winui-webview-host');
 };
@@ -1486,6 +1520,14 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
                     return;
                 }
 
+                if (type.GetString() == "shellCommand"
+                    && root.TryGetProperty("action", out var action)
+                    && action.ValueKind == JsonValueKind.String)
+                {
+                    _ = HandleShellCommandAsync(action.GetString(), root.Clone(), args.Source);
+                    return;
+                }
+
                 if (type.GetString() == "documentInfoChanged")
                 {
                     string? title = root.TryGetProperty("title", out var titleValue) ? titleValue.GetString() : null;
@@ -1608,6 +1650,339 @@ new MutationObserver(post).observe(document.querySelector('title')||document.doc
             {
                 System.Diagnostics.Debug.WriteLine($"WebView message failed: {ex.Message}");
             }
+        }
+
+        private async Task HandleShellCommandAsync(string? action, JsonElement message, string source)
+        {
+            var requestId = message.TryGetProperty("requestId", out var requestIdValue)
+                && requestIdValue.ValueKind == JsonValueKind.String
+                    ? requestIdValue.GetString()
+                    : null;
+            var payload = message.TryGetProperty("payload", out var payloadValue)
+                && payloadValue.ValueKind == JsonValueKind.Object
+                    ? payloadValue
+                    : default;
+
+            try
+            {
+                JsonNode? result = null;
+                switch (action)
+                {
+                    case "pinToStart":
+                        result = JsonValue.Create(_owner != null && await _owner.PinCurrentPageToStartAsync());
+                        break;
+                    case "createDesktopShortcut":
+                        result = JsonValue.Create(_owner != null && await _owner.CreateDesktopShortcutForCurrentPageAsync());
+                        break;
+                    case "pickFile":
+                        result = await PickFileForWebAsync();
+                        break;
+                    case "pickFolder":
+                        result = await PickFolderForWebAsync();
+                        break;
+                    case "saveTextFile":
+                        result = await SaveTextFileForWebAsync(payload);
+                        break;
+                    case "listLibraryFiles":
+                        result = await ListLibraryFilesForWebAsync(payload);
+                        break;
+                    case "enterpriseFetch":
+                        result = await EnterpriseFetchForWebAsync(payload, source);
+                        break;
+                    case "pickContact":
+                        result = await PickContactForWebAsync();
+                        break;
+                    case "makePhoneCall":
+                        PhoneCallManager.ShowPhoneCallUI(GetRequiredString(payload, "number"), GetOptionalString(payload, "displayName"));
+                        result = JsonValue.Create(true);
+                        break;
+                    case "composeSms":
+                        result = await ComposeSmsForWebAsync(payload);
+                        break;
+                    case "addAppointment":
+                        result = await AddAppointmentForWebAsync(payload);
+                        break;
+                    case "addTask":
+                        result = await AddTaskForWebAsync(payload);
+                        break;
+                    case "getPhoneCallHistory":
+                        result = await GetPhoneCallHistoryForWebAsync();
+                        break;
+                    case "getSharedUserCertificates":
+                        result = await GetSharedUserCertificatesForWebAsync();
+                        break;
+                    case "getUserAccountInfo":
+                        result = await GetUserAccountInfoForWebAsync();
+                        break;
+                    case "getNotifications":
+                        result = await GetNotificationsForWebAsync();
+                        break;
+                    case "pickGraphicsCapture":
+                        result = await PickGraphicsCaptureForWebAsync();
+                        break;
+                    default:
+                        throw new InvalidOperationException($"Unknown host action: {action}");
+                }
+
+                PostShellResult(requestId, true, result, null);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[WinUIonWeb ShellBridge] {action} failed: {ex.Message}");
+                PostShellResult(requestId, false, null, ex.Message);
+            }
+        }
+
+        private void PostShellResult(string? requestId, bool ok, JsonNode? result, string? error)
+        {
+            if (string.IsNullOrWhiteSpace(requestId) || RootWebView.CoreWebView2 == null)
+            {
+                return;
+            }
+
+            var response = new JsonObject
+            {
+                ["source"] = "WinUIonWeb",
+                ["type"] = "shellResult",
+                ["requestId"] = requestId,
+                ["ok"] = ok,
+                ["result"] = result,
+                ["error"] = error
+            };
+            RootWebView.CoreWebView2.PostWebMessageAsJson(response.ToJsonString());
+        }
+
+        private static string GetRequiredString(JsonElement payload, string name)
+        {
+            var value = GetOptionalString(payload, name);
+            return string.IsNullOrWhiteSpace(value)
+                ? throw new ArgumentException($"Missing payload.{name}")
+                : value;
+        }
+
+        private static string GetOptionalString(JsonElement payload, string name, string fallback = "")
+        {
+            return payload.ValueKind == JsonValueKind.Object
+                && payload.TryGetProperty(name, out var value)
+                && value.ValueKind == JsonValueKind.String
+                    ? value.GetString()?.Trim() ?? fallback
+                    : fallback;
+        }
+
+        private static async Task<JsonNode?> PickFileForWebAsync()
+        {
+            var picker = new FileOpenPicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };
+            picker.FileTypeFilter.Add("*");
+            var file = await picker.PickSingleFileAsync();
+            if (file == null) return null;
+            var properties = await file.GetBasicPropertiesAsync();
+            return new JsonObject { ["name"] = file.Name, ["path"] = file.Path, ["size"] = properties.Size };
+        }
+
+        private static async Task<JsonNode?> PickFolderForWebAsync()
+        {
+            var picker = new FolderPicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };
+            picker.FileTypeFilter.Add("*");
+            var folder = await picker.PickSingleFolderAsync();
+            return folder == null ? null : new JsonObject { ["name"] = folder.Name, ["path"] = folder.Path };
+        }
+
+        private static async Task<JsonNode?> SaveTextFileForWebAsync(JsonElement payload)
+        {
+            var picker = new FileSavePicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };
+            picker.FileTypeChoices.Add("Text", new List<string> { ".txt" });
+            picker.SuggestedFileName = GetOptionalString(payload, "suggestedName", "document.txt");
+            var file = await picker.PickSaveFileAsync();
+            if (file == null) return null;
+            await FileIO.WriteTextAsync(file, GetOptionalString(payload, "text"));
+            return new JsonObject { ["name"] = file.Name, ["path"] = file.Path };
+        }
+
+        private static async Task<JsonNode> ListLibraryFilesForWebAsync(JsonElement payload)
+        {
+            var library = GetRequiredString(payload, "library");
+            StorageFolder folder = library switch
+            {
+                "music" => KnownFolders.MusicLibrary,
+                "pictures" => KnownFolders.PicturesLibrary,
+                "videos" => KnownFolders.VideosLibrary,
+                "objects3D" => KnownFolders.Objects3D,
+                "removableStorage" => KnownFolders.RemovableDevices,
+                _ => throw new ArgumentException($"Unsupported library: {library}")
+            };
+
+            var items = await folder.GetItemsAsync(0, 100);
+            var result = new JsonArray();
+            foreach (var item in items)
+            {
+                result.Add(new JsonObject
+                {
+                    ["name"] = item.Name,
+                    ["path"] = item.Path,
+                    ["type"] = item.IsOfType(StorageItemTypes.Folder) ? "folder" : "file"
+                });
+            }
+            return result;
+        }
+
+        private static async Task<JsonNode> EnterpriseFetchForWebAsync(JsonElement payload, string source)
+        {
+            var url = GetRequiredString(payload, "url");
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                || uri.Scheme != Uri.UriSchemeHttps)
+            {
+                throw new ArgumentException("Only absolute HTTPS URLs are allowed");
+            }
+            if (!Uri.TryCreate(source, UriKind.Absolute, out var sourceUri)
+                || !string.Equals(uri.Scheme, sourceUri.Scheme, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(uri.Host, sourceUri.Host, StringComparison.OrdinalIgnoreCase)
+                || uri.Port != sourceUri.Port)
+            {
+                throw new UnauthorizedAccessException("Enterprise requests must use the current page origin");
+            }
+
+            using var handler = new HttpClientHandler { UseDefaultCredentials = true };
+            using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(30) };
+            using var response = await client.GetAsync(uri);
+            var body = await response.Content.ReadAsStringAsync();
+            if (body.Length > 1024 * 1024)
+            {
+                body = body.Substring(0, 1024 * 1024);
+            }
+            return new JsonObject
+            {
+                ["status"] = (int)response.StatusCode,
+                ["reason"] = response.ReasonPhrase,
+                ["body"] = body
+            };
+        }
+
+        private static async Task<JsonNode?> PickContactForWebAsync()
+        {
+            var contact = await new ContactPicker().PickContactAsync();
+            if (contact == null) return null;
+            var phones = new JsonArray(contact.Phones.Select(item => (JsonNode?)item.Number).ToArray());
+            var emails = new JsonArray(contact.Emails.Select(item => (JsonNode?)item.Address).ToArray());
+            return new JsonObject { ["name"] = contact.DisplayName, ["phones"] = phones, ["emails"] = emails };
+        }
+
+        private static async Task<JsonNode> ComposeSmsForWebAsync(JsonElement payload)
+        {
+            var message = new ChatMessage { Body = GetOptionalString(payload, "text") };
+            var number = GetOptionalString(payload, "number");
+            if (!string.IsNullOrWhiteSpace(number)) message.Recipients.Add(number);
+            await ChatMessageManager.ShowComposeSmsMessageAsync(message);
+            return JsonValue.Create(true)!;
+        }
+
+        private static async Task<JsonNode?> AddAppointmentForWebAsync(JsonElement payload)
+        {
+            var appointment = new Appointment
+            {
+                Subject = GetRequiredString(payload, "subject"),
+                Details = GetOptionalString(payload, "details"),
+                Location = GetOptionalString(payload, "location"),
+                StartTime = DateTimeOffset.TryParse(GetOptionalString(payload, "startTime"), out var start) ? start : DateTimeOffset.Now,
+                Duration = TimeSpan.FromMinutes(payload.ValueKind == JsonValueKind.Object
+                    && payload.TryGetProperty("durationMinutes", out var duration)
+                    && duration.TryGetDouble(out var minutes) ? Math.Max(1, minutes) : 30)
+            };
+            var id = await AppointmentManager.ShowAddAppointmentAsync(appointment, new Windows.Foundation.Rect(0, 0, 1, 1));
+            return string.IsNullOrWhiteSpace(id) ? null : JsonValue.Create(id);
+        }
+
+        private static async Task<JsonNode?> AddTaskForWebAsync(JsonElement payload)
+        {
+            var store = await UserDataTaskManager.GetDefault().RequestStoreAsync(UserDataTaskStoreAccessType.AppTasksReadWrite);
+            var lists = await store.FindListsAsync();
+            var list = lists.FirstOrDefault() ?? await store.CreateListAsync("WinUIonWeb");
+            var task = new UserDataTask { Subject = GetRequiredString(payload, "subject"), Details = GetOptionalString(payload, "details") };
+            await list.SaveTaskAsync(task);
+            return JsonValue.Create(task.Id);
+        }
+
+        private static async Task<JsonNode> GetPhoneCallHistoryForWebAsync()
+        {
+            var store = await PhoneCallHistoryManager.RequestStoreAsync(PhoneCallHistoryStoreAccessType.AllEntriesLimitedReadWrite);
+            var entries = await store.GetEntryReader().ReadBatchAsync();
+            var result = new JsonArray();
+            foreach (var entry in entries.Take(50))
+            {
+                result.Add(new JsonObject
+                {
+                    ["number"] = entry.Address?.RawAddress ?? "",
+                    ["displayName"] = entry.Address?.DisplayName ?? "",
+                    ["startTime"] = entry.StartTime.ToString("O"),
+                    ["durationSeconds"] = entry.Duration?.TotalSeconds ?? 0,
+                    ["isIncoming"] = entry.IsIncoming
+                });
+            }
+            return result;
+        }
+
+        private static async Task<JsonNode> GetSharedUserCertificatesForWebAsync()
+        {
+            var certificates = await CertificateStores.FindAllAsync();
+            var result = new JsonArray();
+            foreach (var certificate in certificates)
+            {
+                result.Add(new JsonObject
+                {
+                    ["subject"] = certificate.Subject,
+                    ["issuer"] = certificate.Issuer,
+                    ["friendlyName"] = certificate.FriendlyName,
+                    ["validFrom"] = certificate.ValidFrom.ToString("O"),
+                    ["validTo"] = certificate.ValidTo.ToString("O"),
+                    ["hasPrivateKey"] = certificate.HasPrivateKey
+                });
+            }
+            return result;
+        }
+
+        private static async Task<JsonNode> GetUserAccountInfoForWebAsync()
+        {
+            return new JsonObject
+            {
+                ["displayName"] = await UserInformation.GetDisplayNameAsync(),
+                ["firstName"] = await UserInformation.GetFirstNameAsync(),
+                ["lastName"] = await UserInformation.GetLastNameAsync(),
+                ["domainName"] = await UserInformation.GetDomainNameAsync(),
+                ["principalName"] = await UserInformation.GetPrincipalNameAsync()
+            };
+        }
+
+        private static async Task<JsonNode> GetNotificationsForWebAsync()
+        {
+            var listener = UserNotificationListener.Current;
+            var access = await listener.RequestAccessAsync();
+            if (access != UserNotificationListenerAccessStatus.Allowed)
+            {
+                throw new UnauthorizedAccessException($"Notification access: {access}");
+            }
+            var notifications = await listener.GetNotificationsAsync(Windows.UI.Notifications.NotificationKinds.Toast);
+            var result = new JsonArray();
+            foreach (var notification in notifications.Take(50))
+            {
+                result.Add(new JsonObject
+                {
+                    ["id"] = notification.Id,
+                    ["appName"] = notification.AppInfo.DisplayInfo.DisplayName,
+                    ["createdAt"] = notification.CreationTime.ToString("O")
+                });
+            }
+            return result;
+        }
+
+        private static async Task<JsonNode?> PickGraphicsCaptureForWebAsync()
+        {
+            if (!GraphicsCaptureSession.IsSupported()) throw new NotSupportedException("Graphics capture is not supported");
+            var item = await new GraphicsCapturePicker().PickSingleItemAsync();
+            return item == null ? null : new JsonObject
+            {
+                ["displayName"] = item.DisplayName,
+                ["width"] = item.Size.Width,
+                ["height"] = item.Size.Height
+            };
         }
 
         private static bool TryGetFiniteDouble(JsonElement item, string propertyName, out double value)
